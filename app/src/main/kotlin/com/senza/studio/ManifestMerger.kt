@@ -154,8 +154,8 @@ object ManifestMerger {
                         importInto(root, c)
                     }
                     c.tagName == "queries" -> {
-                        var q = children(root).firstOrNull { it.tagName == "queries" }
-                        if (q == null) { q = doc.createElement("queries"); root.appendChild(q) }
+                        val q: Element = children(root).firstOrNull { it.tagName == "queries" }
+                            ?: doc.createElement("queries").also { root.appendChild(it) }
                         for (qc in children(c)) {
                             val k = "queries:" + qc.tagName + ":" + (nameOf(qc) ?: qc.textContent.trim() + children(qc).joinToString { it.tagName })
                             if (!existing.add(k)) continue

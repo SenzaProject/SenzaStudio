@@ -18,8 +18,8 @@ import java.util.zip.ZipOutputStream
  *
  * Bahan: APK dari `aapt2 link --proto-format` (manifest + resource dalam format protobuf),
  * dex hasil D8/R8, dan pustaka native. Susunan modul `base`:
- *   base/manifest/AndroidManifest.xml, base/resources.pb, base/res/**, base/assets/**,
- *   base/dex/classes*.dex, base/lib/<abi>/*.so, base/root/**, plus BundleConfig.pb di akar.
+ *   base/manifest/AndroidManifest.xml, base/resources.pb, folder base/res dan base/assets,
+ *   base/dex/classesN.dex, base/lib/(abi)/(nama).so, folder base/root, plus BundleConfig.pb di akar.
  * Lalu ditandatangani gaya jarsigner (MANIFEST.MF + .SF + blok PKCS#7), seperti yang diminta Play.
  *
  * Belum diuji lawan bundletool/Play Console. Validasi dengan `bundletool validate --bundle=app.aab`

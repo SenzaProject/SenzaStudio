@@ -184,8 +184,8 @@ class MavenResolver(
         props.putAll(raw.props)
 
         for (d in raw.mgmt) {
-            val dg = interp(d.g, props)
-            val da = interp(d.a, props)
+            val dg = interp(d.g, props) ?: d.g
+            val da = interp(d.a, props) ?: d.a
             val dv = interp(d.v, props) ?: continue
             if (d.scope == "import" && d.type == "pom" && depth < 8) {
                 val bom = try { effective(MavenCoord(dg, da, cleanVersion(dv)), depth + 1) } catch (e: BuildError) { null }
@@ -197,8 +197,8 @@ class MavenResolver(
 
         val deps = ArrayList<Dep>()
         for (d in raw.deps) {
-            val dg = interp(d.g, props)
-            val da = interp(d.a, props)
+            val dg = interp(d.g, props) ?: d.g
+            val da = interp(d.a, props) ?: d.a
             val managed = mgmt["$dg:$da"]
             val dvRaw = interp(d.v, props) ?: managed?.v ?: continue
             val scope = d.scope ?: managed?.scope ?: "compile"
@@ -265,7 +265,8 @@ class MavenResolver(
         root.kid("properties")?.let { p ->
             var n = p.firstChild
             while (n != null) {
-                if (n is Element) props[n.tagName] = n.textContent.trim()
+                val cur = n
+                if (cur is Element) props[cur.tagName] = cur.textContent.trim()
                 n = n.nextSibling
             }
         }
