@@ -34,7 +34,16 @@ Dibuat oleh **SenzaProject**.
   - **Build variants + BuildConfig**: `buildTypes`, `productFlavors` (satu flavor per build), `applicationIdSuffix`, `versionNameSuffix`, `buildConfigField` dibaca dari build.gradle. `BuildConfig.java` (DEBUG, APPLICATION_ID, BUILD_TYPE, FLAVOR, VERSION_CODE, VERSION_NAME + field kustom) dibuat tiap build.
   - **Bundel AAB (eksperimental)**: Release + saklar *Buat juga bundel .aab*. Dirakit tanpa bundletool.
 
+- **Kompatibilitas proyek (Fase 5, bagian 1)** —
+  - **BOM / `platform(...)`**: `implementation platform("androidx.compose:compose-bom:2024.06.00")` lalu `implementation("androidx.compose.ui:ui")` tanpa versi. Versi BOM juga mengatur dependency turunan (versi tertinggi menang, seperti constraint Gradle); `enforcedPlatform(...)` memaksa versinya.
+  - **Version catalog**: `gradle/libs.versions.toml` dibaca otomatis (`[versions]`, `[libraries]`, `[bundles]`). Dipahami: `libs.androidx.core.ktx`, `libs.bundles.compose`, `platform(libs.xxx)`, `coreLibraryDesugaring(libs.xxx)`, `version.ref`, `module = "g:a"`, `group/name`, versi rich (`prefer`/`require`/`strictly`), dan `"g:a:${libs.versions.xxx.get()}"`. Impor `.zip` proyek Gradle ikut membawa file catalog.
+  - **Core library desugaring**: `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")` + `isCoreLibraryDesugaringEnabled = true` membuat `java.time`, stream, dsb. jalan di HP lama. Kelas `j$.*` dibuat L8 (di-cache), panggilan API ditulis ulang D8/R8.
+
 ## Batasan (jujur)
+- **Fase 5 (bagian 1) belum diuji di perangkat** (BOM, version catalog, desugaring). Uji dan kirim log bila gagal. Bagian lain Fase 5 (modul lokal, ViewBinding, resource penuh, source set per flavor) belum dikerjakan.
+- **Desugaring**: L8 dijalankan tanpa pengecilan, jadi dex `j$.*` utuh ditambahkan ke APK (beberapa ratus KB). Nama artifact konfigurasi (`desugar_jdk_libs_configuration`) dan versinya harus ada di Google Maven. Gagal di D8/L8/R8? Salin log-nya.
+- **Version catalog**: hanya katalog bernama `libs` di `gradle/libs.versions.toml` (atau `libs.versions.toml` di akar proyek). `[plugins]` dibaca tetapi plugin Gradle tidak dijalankan. Variabel Groovy/Kotlin (`$kotlin_version`, `ext`) belum didukung: tulis versinya langsung.
+- **BOM**: hanya BOM berformat `.pom` (Google Maven / Maven Central). Metadata `.module` Gradle tidak dibaca.
 - **Fase 4 belum diuji di perangkat** (ditulis tanpa bisa menjalankan aplikasinya). Uji satu per satu dan kirim log bila gagal.
 - **AAB**: format dirakit sendiri (aapt2 `--proto-format` + susunan modul `base` + tanda tangan gaya jarsigner, `BundleConfig.pb` kosong). Belum divalidasi lawan bundletool/Play Console. Jalankan `bundletool validate --bundle=app-release.aab` di PC sebelum mengunggah.
 - **Git**: hanya HTTPS + token, tanpa SSH. Repo bergaya Gradle (`app/src/main/...`) tidak disusun ulang saat clone; clone di PC lalu Impor .zip. JGit 5.x dipakai karena 6.x butuh Java 11.
@@ -44,9 +53,9 @@ Dibuat oleh **SenzaProject**.
 - Yang dibangun: kode **Java** dan **Kotlin** + resource XML memakai `android.jar`, plus library Maven/AAR.
 - **Kotlin** (Fase 2): build Kotlin pertama lambat dan butuh RAM besar. Compiler Kotlin dipakai di proses terpisah lewat `app_process`; belum diuji di semua perangkat. Library yang dibuat dengan Kotlin lebih baru dari 1.9.x bisa ditolak compiler. Jetpack Compose belum didukung (butuh compiler plugin Compose).
 - **R8**: aplikasi hasil R8 perlu diuji. Kelas yang dipakai lewat refleksi harus kamu `-keep` di `proguard-rules.pro`; pesan `Missing class` diberi saran `-dontwarn`.
-- Gradle-lite hanya membaca subset sederhana. BOM/`platform(...)`, `project(...)`, version catalog (`libs.xxx`), dan plugin Gradle tidak didukung (diberi peringatan di log).
+- Gradle-lite hanya membaca subset sederhana. `project(...)` (modul lokal) dan plugin Gradle tidak didukung (diberi peringatan di log).
 - Library yang butuh annotation processing (Room, Hilt, Glide compiler, `kapt`/`ksp`) belum bisa dipakai. Baris `annotationProcessor`/`kapt`/`ksp` diberi peringatan di log.
-- Desugaring API Java baru untuk HP lama (core library desugaring) belum ada; `minSdk` dipaksa minimal 21.
+- `minSdk` dipaksa minimal 21.
 - Unduhan dependency butuh internet dan ruang penyimpanan (menu proyek > Bersihkan cache build).
 - Build butuh **aapt2 ARM64 (Android, berdiri sendiri)** di `app/src/main/jniLibs/arm64-v8a/libaapt2.so`.
 - UI Preview adalah perkiraan; widget yang belum dikenal ditandai ⚠.
@@ -61,7 +70,7 @@ Dibuat oleh **SenzaProject**.
 ## Push dari Termux
     pkg install git
     cd SenzaStudio
-    git init && git add . && git commit -m "Senza Studio v1.3.0: keystore, git, varian, AAB (Fase 4)"
+    git init && git add . && git commit -m "Senza Studio v1.4.0: BOM, version catalog, desugaring (Fase 5 bagian 1)"
     git branch -M main
     git remote add origin https://github.com/SenzaProject/SenzaStudio.git
     read -s -p "Token: " T; echo
@@ -75,9 +84,9 @@ Kalau repo sudah ada dan terhubung (update berikutnya), cukup:
     git push https://SenzaProject:$T@github.com/SenzaProject/SenzaStudio.git main
 
 ## Alur build di dalam aplikasi
-Maven resolver → manifest merger → aapt2 compile (app + library) → aapt2 link → kotlinc (proses terpisah, bila ada `.kt`) → ECJ → D8 (per library, di-cache) → gabung dex **atau** R8 (release + Perkecil kode) → rakit APK → apksig (verifikasi) → [AAB] → PackageInstaller
+Maven resolver (+BOM, catalog, desugar) → manifest merger → aapt2 compile (app + library) → aapt2 link → kotlinc (proses terpisah, bila ada `.kt`) → ECJ → D8 (per library, di-cache; + L8 untuk j$.* bila desugaring) → gabung dex **atau** R8 (release + Perkecil kode) → rakit APK → apksig (verifikasi) → [AAB] → PackageInstaller
 
 ## Struktur kode (`com.senza.studio`)
 `MainActivity` (navigasi, drawer, build) · `*Screen.kt` (tiap layar) · `LayoutPreview` (renderer XML) ·
-`SenzaBuilder` (pipeline build) · `KotlinSupport` + `KotlinCompilerMain` (compiler Kotlin di proses terpisah) · `MavenResolver` (unduh & selesaikan dependency) · `ManifestMerger` · `GradleLite` (baca build.gradle) ·
+`SenzaBuilder` (pipeline build) · `KotlinSupport` + `KotlinCompilerMain` (compiler Kotlin di proses terpisah) · `MavenResolver` (unduh & selesaikan dependency, BOM) · `VersionCatalog` (libs.versions.toml) · `DesugarLib` (core library desugaring) · `ManifestMerger` · `GradleLite` (baca build.gradle) ·
 `BuildService` (foreground service + notifikasi) · `ProjectStore` (proyek, zip) · `KeystoreManager`/`KeystoreScreen` · `GitTools`/`GitScreen` · `FolderSync` · `Variants` · `AabBuilder` · `ApkTools`/`Installer` · `SecretStore` · `Theme` (tema Liquid Glass)

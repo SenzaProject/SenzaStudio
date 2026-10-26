@@ -30,7 +30,7 @@ class ProjectStore(private val ctx: Context) {
 
     companion object {
         val TEXT_EXT = setOf(
-            "java", "xml", "txt", "md", "json", "properties", "gradle", "kts", "kt", "pro", "html", "css", "js", "csv", "yml", "yaml"
+            "java", "xml", "txt", "md", "json", "properties", "gradle", "kts", "toml", "kt", "pro", "html", "css", "js", "csv", "yml", "yaml"
         )
 
         fun isTextFile(f: File) = f.extension.lowercase() in TEXT_EXT || f.name.startsWith(".git")
@@ -225,6 +225,11 @@ class ProjectStore(private val ctx: Context) {
             // proyek bergaya Gradle (app/src/main/...) -> disusun ulang ke struktur Senza
             val modPrefix = gradleManifest.removeSuffix("src/main/AndroidManifest.xml")
             val main = modPrefix + "src/main/"
+            // version catalog ada di akar repo (gradle/libs.versions.toml), di luar folder modul
+            entries.keys
+                .filter { it == "gradle/libs.versions.toml" || it.endsWith("/gradle/libs.versions.toml") }
+                .minByOrNull { it.count { c -> c == '/' } }
+                ?.let { files["gradle/libs.versions.toml"] = entries.getValue(it) }
             for ((path, bytes) in entries) {
                 if (!path.startsWith(modPrefix) || path.contains("/build/")) continue
                 val rel: String? = when {

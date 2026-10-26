@@ -11,8 +11,8 @@ android {
         applicationId = "com.senza.studio"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.3.0"
+        versionCode = 8
+        versionName = "1.4.0"
         ndk { abiFilters += "arm64-v8a" }   // aapt2 yang dipakai hanya ARM64
     }
 

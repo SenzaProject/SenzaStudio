@@ -18,6 +18,9 @@ class VariantCfg {
     val fields = LinkedHashMap<String, BuildField>()
 }
 
+/** BOM / platform(...) yang mengatur versi library lain. [enforced] = enforcedPlatform (versi dipaksa). */
+class PlatformDep(val coord: MavenCoord, val enforced: Boolean)
+
 /** Hasil pembacaan build.gradle (hanya bagian yang dipahami Senza Studio). */
 class GradleInfo {
     var namespace: String? = null
@@ -29,6 +32,14 @@ class GradleInfo {
     var compileSdk: Int? = null
     var minifyEnabled: Boolean? = null
     val dependencies = ArrayList<MavenCoord>()
+    /** Dependency tanpa versi (versinya datang dari BOM). MavenCoord.version kosong. */
+    val unversioned = ArrayList<MavenCoord>()
+    /** Daftar platform(...) / enforcedPlatform(...). */
+    val platforms = ArrayList<PlatformDep>()
+    /** coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:x"), null jika tidak ada. */
+    var desugarLib: MavenCoord? = null
+    /** isCoreLibraryDesugaringEnabled di compileOptions (null = tidak ditulis). */
+    var desugarFlag: Boolean? = null
     val warnings = ArrayList<String>()
     /** buildConfigField di defaultConfig. */
     val defaultFields = LinkedHashMap<String, BuildField>()
@@ -42,7 +53,9 @@ class GradleInfo {
  * "Gradle-lite": membaca subset kecil build.gradle (Groovy) dan build.gradle.kts.
  * Yang dipahami: namespace, applicationId, versionCode, versionName, minSdk, targetSdk,
  * compileSdk, dan baris dependencies (implementation / api / runtimeOnly) berbentuk teks "g:a:v".
- * Yang dilewati dengan peringatan: platform/BOM, project(...), version catalog (libs.xxx), file tree.
+ * Fase 5: platform(...)/enforcedPlatform(...) (BOM), dependency tanpa versi, version catalog
+ * (gradle/libs.versions.toml: libs.xxx, libs.bundles.xxx), dan coreLibraryDesugaring.
+ * Yang dilewati dengan peringatan: project(...), file tree.
  */
 object GradleLite {
 
@@ -51,7 +64,7 @@ object GradleLite {
     private val IGNORED_CONFIGS = setOf(
         "testImplementation", "androidTestImplementation", "debugImplementation", "releaseImplementation",
         "compileOnly", "annotationProcessor", "kapt", "ksp", "testRuntimeOnly", "testCompileOnly",
-        "androidTestRuntimeOnly", "lintChecks", "coreLibraryDesugaring"
+        "androidTestRuntimeOnly", "lintChecks"
     )
 
     fun fileOf(proj: File): File? =
@@ -59,11 +72,12 @@ object GradleLite {
 
     fun read(proj: File): GradleInfo {
         val f = fileOf(proj) ?: return GradleInfo()
-        return parse(f.readText())
+        return parse(f.readText(), VersionCatalog.load(proj))
     }
 
-    fun parse(raw: String): GradleInfo {
+    fun parse(raw: String, catalog: VersionCatalog? = null): GradleInfo {
         val info = GradleInfo()
+        catalog?.warnings?.forEach { info.warnings.add("libs.versions.toml: $it") }
         val text = stripComments(raw)
 
         fun str(vararg keys: String): String? {
@@ -91,8 +105,11 @@ object GradleLite {
         info.compileSdk = int("compileSdk", "compileSdkVersion")
         val minify = Regex("""(?m)^\s*(?:is)?[mM]inify(?:Enabled)?\s*(?:=|\s)\s*(true|false)""").findAll(text).toList()
         if (minify.isNotEmpty()) info.minifyEnabled = minify.any { it.groupValues[1] == "true" }
+        Regex("""(?m)^\s*(?:isCoreLibraryDesugaringEnabled|coreLibraryDesugaringEnabled)\s*(?:=|\s)\s*(true|false)""")
+            .find(text)?.let { info.desugarFlag = it.groupValues[1] == "true" }
 
         val seen = HashSet<String>()
+        val seenManaged = HashSet<String>()
         for (line in text.lines()) {
             val t = line.trim()
             val m = Regex("""^([A-Za-z]+)\s*[\s(]\s*(.+)$""").find(t) ?: continue
@@ -102,35 +119,98 @@ object GradleLite {
                 info.warnings.add("$conf belum didukung (annotation processing belum ada). Library yang butuh pemroses seperti Room, Hilt, atau Glide compiler tidak akan jalan: $t")
                 continue
             }
+            if (conf == "coreLibraryDesugaring") {
+                val c = readArgs(rest, catalog, info, t).firstOrNull { !it.platform }?.coord
+                if (c != null && c.version.isNotBlank()) info.desugarLib = c
+                else info.warnings.add("coreLibraryDesugaring tanpa versi dilewati: $t")
+                continue
+            }
             if (conf in IGNORED_CONFIGS) continue
             if (conf !in CONFIGS) continue
 
-            val lit = Regex("""^["']([^"']+)["']""").find(rest)
-            if (lit != null) {
-                val parts = lit.groupValues[1].split(':')
-                if (parts.size >= 3 && parts[2].isNotBlank()) {
-                    val c = MavenCoord(parts[0].trim(), parts[1].trim(), parts[2].trim())
-                    if (seen.add(c.toString())) info.dependencies.add(c)
-                } else {
-                    info.warnings.add("Dependency tanpa versi dilewati: ${lit.groupValues[1]}")
+            for (a in readArgs(rest, catalog, info, t)) {
+                val c = a.coord
+                when {
+                    a.platform ->
+                        if (c.version.isBlank()) info.warnings.add("platform(...) harus punya versi: $t")
+                        else if (info.platforms.none { it.coord.toString() == c.toString() }) info.platforms.add(PlatformDep(c, a.enforced))
+                    c.version.isBlank() -> if (seenManaged.add(c.key)) info.unversioned.add(c)
+                    else -> if (seen.add(c.toString())) info.dependencies.add(c)
                 }
-                continue
-            }
-            when {
-                rest.startsWith("platform(") || rest.startsWith("enforcedPlatform(") ->
-                    info.warnings.add("BOM/platform belum didukung, tulis versi tiap library: $t")
-                rest.startsWith("project(") ->
-                    info.warnings.add("Modul lain (project(...)) belum didukung: $t")
-                rest.startsWith("files(") || rest.startsWith("fileTree(") ->
-                    info.warnings.add("files()/fileTree() belum didukung. Taruh .jar di folder libs/ proyek.")
-                rest.startsWith("libs.") ->
-                    info.warnings.add("Version catalog (libs.xxx) belum didukung, tulis \"group:artifact:versi\": $t")
-                else -> if (Regex("""^[A-Za-z]""").containsMatchIn(rest))
-                    info.warnings.add("Baris dependency tidak dikenali: $t")
             }
         }
         parseVariants(text, info)
         return info
+    }
+
+    // ---------- argumen dependency: "g:a:v", platform(...), libs.xxx ----------
+
+    private class Arg(val coord: MavenCoord, val platform: Boolean = false, val enforced: Boolean = false)
+
+    /** Ubah sisi kanan satu baris dependency menjadi daftar koordinat (bundle bisa menghasilkan banyak). */
+    private fun readArgs(rest: String, catalog: VersionCatalog?, info: GradleInfo, line: String): List<Arg> {
+        val enforced = rest.startsWith("enforcedPlatform(")
+        if (rest.startsWith("platform(") || enforced) {
+            val inner = rest.substringAfter('(').trim()
+            return readArgs(inner, catalog, info, line).map { Arg(it.coord, true, enforced) }
+        }
+
+        val lit = Regex("""^["']([^"']+)["']""").find(rest)
+        if (lit != null) {
+            var spec = lit.groupValues[1].substringBefore('@')
+            if (spec.contains('$') && catalog != null) {
+                // "g:a:${libs.versions.xxx.get()}"
+                spec = Regex("""\$\{?libs\.versions\.([A-Za-z0-9_.]+?)\.get\(\)\}?""").replace(spec) { mm ->
+                    catalog.version(mm.groupValues[1]) ?: mm.value
+                }
+            }
+            if (spec.contains('$')) {
+                info.warnings.add("Versi memakai variabel yang belum didukung, tulis versinya langsung: $line")
+                return emptyList()
+            }
+            val parts = spec.split(':').map { it.trim() }
+            return when {
+                parts.size >= 3 && parts[0].isNotEmpty() && parts[1].isNotEmpty() && parts[2].isNotEmpty() ->
+                    listOf(Arg(MavenCoord(parts[0], parts[1], parts[2])))
+                parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty() ->
+                    listOf(Arg(MavenCoord(parts[0], parts[1], "")))   // versi dari BOM
+                else -> {
+                    info.warnings.add("Dependency tidak valid dilewati: ${lit.groupValues[1]}")
+                    emptyList()
+                }
+            }
+        }
+
+        val ref = Regex("""^libs\.([A-Za-z0-9_.]+)""").find(rest)
+        if (ref != null) {
+            val key = ref.groupValues[1].removeSuffix(".get").removeSuffix(".asProvider")
+            if (key.startsWith("versions.") || key.startsWith("plugins.")) return emptyList()
+            if (catalog == null) {
+                info.warnings.add("libs.$key dipakai tetapi gradle/libs.versions.toml tidak ditemukan: $line")
+                return emptyList()
+            }
+            if (key.startsWith("bundles.")) {
+                val list = catalog.bundle(key.removePrefix("bundles."))
+                if (list.isEmpty()) info.warnings.add("Bundle tidak ditemukan atau kosong di libs.versions.toml: libs.$key")
+                return list.map { Arg(it.coord()) }
+            }
+            val l = catalog.library(key)
+            if (l == null) {
+                info.warnings.add("Alias libs.$key tidak ada di libs.versions.toml")
+                return emptyList()
+            }
+            return listOf(Arg(l.coord()))
+        }
+
+        when {
+            rest.startsWith("project(") ->
+                info.warnings.add("Modul lain (project(...)) belum didukung: $line")
+            rest.startsWith("files(") || rest.startsWith("fileTree(") ->
+                info.warnings.add("files()/fileTree() belum didukung. Taruh .jar di folder libs/ proyek.")
+            Regex("""^[A-Za-z]""").containsMatchIn(rest) ->
+                info.warnings.add("Baris dependency tidak dikenali: $line")
+        }
+        return emptyList()
     }
 
     // ---------- build types, product flavors, buildConfigField ----------
@@ -247,7 +327,8 @@ object GradleLite {
         val kts = gradle.name.endsWith(".kts")
         val line = if (kts) "    implementation(\"$coord\")" else "    implementation '$coord'"
         val text = gradle.readText()
-        if (read(proj).dependencies.any { it.key == "${parts[0]}:${parts[1]}" })
+        val cur = read(proj)
+        if (cur.dependencies.any { it.key == "${parts[0]}:${parts[1]}" } || cur.unversioned.any { it.key == "${parts[0]}:${parts[1]}" })
             throw IllegalArgumentException("Library ${parts[0]}:${parts[1]} sudah ada di ${gradle.name}.")
         val idx = Regex("""dependencies\s*\{""").find(text)
         val out = if (idx != null) {

@@ -5,6 +5,8 @@ import com.android.apksig.ApkSigner
 import com.android.tools.r8.CompilationMode
 import com.android.tools.r8.D8
 import com.android.tools.r8.D8Command
+import com.android.tools.r8.L8
+import com.android.tools.r8.L8Command
 import com.android.tools.r8.Diagnostic
 import com.android.tools.r8.DiagnosticsHandler
 import com.android.tools.r8.OutputMode
@@ -219,17 +221,34 @@ class SenzaBuilder(
             checkCancel()
             onStep(1, "Mengambil dependency (Maven)")
             info.warnings.forEach { log("PERINGATAN: $it") }
-            if (ktFiles.isNotEmpty() && info.dependencies.none { it.key == KotlinSupport.STDLIB }) {
+            if (ktFiles.isNotEmpty() && info.dependencies.none { it.key == KotlinSupport.STDLIB } && info.unversioned.none { it.key == KotlinSupport.STDLIB }) {
                 info.dependencies.add(MavenCoord("org.jetbrains.kotlin", "kotlin-stdlib", KotlinSupport.VERSION))
                 log("  + kotlin-stdlib:${KotlinSupport.VERSION} (otomatis karena ada file .kt)")
             }
             val libs = ArrayList<ResolvedLib>()
-            if (info.dependencies.isEmpty()) {
+            val resolver = MavenResolver(File(forgeDir, "m2"), log) { BuildControl.cancelled }
+            if (info.dependencies.isEmpty() && info.unversioned.isEmpty()) {
                 log("  (tidak ada dependency)")
             } else {
-                libs.addAll(MavenResolver(File(forgeDir, "m2"), log) { BuildControl.cancelled }.resolve(info.dependencies))
+                libs.addAll(resolver.resolve(info.dependencies + info.unversioned, info.platforms))
                 log("  ${libs.size} library siap dipakai")
             }
+            // core library desugaring: jar desugar_jdk_libs TIDAK masuk daftar library biasa
+            var desugar: DesugarLib? = null
+            val dsCoord = info.desugarLib
+            if (dsCoord != null) {
+                when (info.desugarFlag) {
+                    false -> log("PERINGATAN: coreLibraryDesugaring ada, tetapi isCoreLibraryDesugaringEnabled = false. Desugaring tidak dipakai.")
+                    else -> {
+                        if (info.desugarFlag == null) log("PERINGATAN: isCoreLibraryDesugaringEnabled = true belum ditulis di compileOptions; desugaring tetap dipakai.")
+                        desugar = DesugarLib.prepare(dsCoord, resolver, log)
+                        log("  desugaring API Java: $dsCoord")
+                    }
+                }
+            } else if (info.desugarFlag == true) {
+                log("PERINGATAN: isCoreLibraryDesugaringEnabled = true, tetapi baris coreLibraryDesugaring(\"com.android.tools:desugar_jdk_libs:...\") tidak ada.")
+            }
+            val dsFp: Array<String> = listOfNotNull(desugar?.key).toTypedArray()
             File(proj, "libs").listFiles { f -> f.isFile && f.extension == "jar" }?.sortedBy { it.name }?.forEach { j ->
                 libs.add(ResolvedLib(MavenCoord("local", j.nameWithoutExtension, hasher.hash(j).take(10)), File(out, "local"), listOf(j), null, null, null, null, false))
                 log("  + libs/${j.name}")
@@ -394,7 +413,7 @@ class SenzaBuilder(
                 libs.mapNotNull { it.proguard }.sortedBy { it.path }.forEach { rules.add(it) }
                 rules.add(userRules)
                 val r8Fp = sha1(
-                    "r8-v1", javaFp, libIds, "$minSdk",
+                    "r8-v1", javaFp, libIds, "$minSdk", *dsFp,
                     *rules.map { it.path + ":" + hasher.hash(it) }.toTypedArray()
                 )
                 if (upToDate(cache, "r8", r8Fp) && mapping.isFile && dexOut.listFiles { f -> f.extension == "dex" }?.isNotEmpty() == true) {
@@ -412,15 +431,26 @@ class SenzaBuilder(
                         setMinApiLevel(minSdk)
                         setMode(CompilationMode.RELEASE)
                         setProguardMapOutputPath(mapping.toPath())
+                        desugar?.let { addDesugaredLibraryConfiguration(it.json) }
+                    }
+                    desugar?.let { ds ->
+                        // dex j$.* hasil L8 ditaruh sebagai dex tambahan di belakang hasil R8
+                        val l8 = desugarDex(ds, minSdk)
+                        var n = (dexOut.listFiles { f -> f.extension == "dex" }?.size ?: 0) + 1
+                        l8.listFiles { f -> f.extension == "dex" }?.sortedBy { it.name }?.forEach {
+                            it.copyTo(File(dexOut, "classes$n.dex"), overwrite = true)
+                            n++
+                        }
+                        log("  desugaring: dex j\$.* ditambahkan")
                     }
                     mark(cache, "r8", r8Fp)
                 }
                 log("  mapping nama: out/mapping.txt (untuk membaca stack trace yang diacak)")
             } else {
                 onStep(6, "Mengubah kode ke format Android (dex)")
-                val libDexDirs = dexLibraries(libs, libJars, minSdk)
+                val libDexDirs = dexLibraries(libs, libJars, minSdk, desugar) + listOfNotNull(desugar?.let { desugarDex(it, minSdk) })
                 checkCancel()
-                val appDexFp = sha1("dexapp-v2", javaFp, mode)
+                val appDexFp = sha1("dexapp-v2", javaFp, mode, *dsFp)
                 if (!(upToDate(cache, "dexapp", appDexFp) && dexApp.isDirectory && dexApp.listFiles { f -> f.extension == "dex" }?.isNotEmpty() == true)) {
                     unmark(cache, "dex")
                     dexApp.deleteRecursively(); dexApp.mkdirs()
@@ -431,11 +461,12 @@ class SenzaBuilder(
                         setOutput(dexApp.toPath(), OutputMode.DexIndexed)
                         setMinApiLevel(minSdk)
                         setMode(if (cfg.release) CompilationMode.RELEASE else CompilationMode.DEBUG)
+                        desugar?.let { addDesugaredLibraryConfiguration(it.json) }
                     }
                     mark(cache, "dexapp", appDexFp)
                 }
                 checkCancel()
-                val dexFp = sha1("dex-v2", appDexFp, libIds, "d8")
+                val dexFp = sha1("dex-v2", appDexFp, libIds, "d8", *dsFp)
                 if (!(upToDate(cache, "dex", dexFp) && dexOut.listFiles { f -> f.extension == "dex" }?.isNotEmpty() == true)) {
                     unmark(cache, "r8")
                     dexOut.deleteRecursively(); dexOut.mkdirs()
@@ -574,14 +605,15 @@ class SenzaBuilder(
     }
 
     /** Dex tiap library sendiri-sendiri dan simpan di cache bersama. Mengembalikan folder dex-nya. */
-    private fun dexLibraries(libs: List<ResolvedLib>, allJars: List<File>, minSdk: Int): List<File> {
+    private fun dexLibraries(libs: List<ResolvedLib>, allJars: List<File>, minSdk: Int, desugar: DesugarLib?): List<File> {
+        val dsFp: Array<String> = listOfNotNull(desugar?.key).toTypedArray()
         val result = ArrayList<File>()
         var fresh = 0
         val total = libs.count { it.jars.isNotEmpty() }
         for (l in libs) {
             if (l.jars.isEmpty()) continue
             checkCancel()
-            val dir = File(forgeDir, "dexcache/" + sha1("lib-v1", l.id, "$minSdk"))
+            val dir = File(forgeDir, "dexcache/" + sha1("lib-v1", l.id, "$minSdk", *dsFp))
             if (!File(dir, ".done").isFile) {
                 dir.deleteRecursively(); dir.mkdirs()
                 log("  dex ${l.coord.artifact} (${++fresh}/$total baru)")
@@ -594,6 +626,7 @@ class SenzaBuilder(
                     setOutput(dir.toPath(), OutputMode.DexIndexed)
                     setMinApiLevel(minSdk)
                     setMode(CompilationMode.RELEASE)
+                    desugar?.let { addDesugaredLibraryConfiguration(it.json) }
                 }
                 File(dir, ".done").writeText("ok")
             }
@@ -601,6 +634,29 @@ class SenzaBuilder(
         }
         if (total > 0) log("  dex library: ${total - fresh} dari cache, $fresh baru")
         return result
+    }
+
+    /** Dex untuk kelas j$.* (desugar_jdk_libs) lewat L8, disimpan di cache bersama. */
+    private fun desugarDex(ds: DesugarLib, minSdk: Int): File {
+        val dir = File(forgeDir, "dexcache/" + sha1("l8-v1", ds.key, "$minSdk"))
+        if (!File(dir, ".done").isFile) {
+            dir.deleteRecursively(); dir.mkdirs()
+            log("  L8: membuat dex j\$.* (${ds.coord.artifact})")
+            try {
+                val b = L8Command.builder()
+                b.addProgramFiles(listOf(ds.jar.toPath()))
+                b.addLibraryFiles(androidJar.toPath())
+                b.addDesugaredLibraryConfiguration(ds.json)
+                b.setMinApiLevel(minSdk)
+                b.setOutput(dir.toPath(), OutputMode.DexIndexed)
+                L8.run(b.build())
+            } catch (e: Exception) {
+                val msg = e.message ?: e.javaClass.simpleName
+                throw BuildError(BuildError.Kind.OTHER, "Gagal membuat dex desugaring (L8): ${msg.lines().firstOrNull() ?: msg}")
+            }
+            File(dir, ".done").writeText("ok")
+        }
+        return dir
     }
 
     private fun runD8(what: String, cfg: D8Command.Builder.() -> Unit) {

@@ -97,12 +97,52 @@ class MavenResolver(
 
     // ---------- API ----------
 
-    fun resolve(roots: List<MavenCoord>): List<ResolvedLib> {
-        if (roots.isEmpty()) return emptyList()
+    /**
+     * [roots] boleh berversi kosong: versinya diambil dari BOM di [platforms].
+     * BOM biasa bertindak sebagai batas bawah (versi tertinggi menang, seperti constraint Gradle);
+     * enforcedPlatform memaksa versinya.
+     */
+    fun resolve(roots0: List<MavenCoord>, platforms: List<PlatformDep> = emptyList()): List<ResolvedLib> {
+        if (roots0.isEmpty()) return emptyList()
+        // rentang versi Maven "[0.7.0,0.8.0)" -> batas bawah (tanpa maven-metadata, jadi bukan "tertinggi yang cocok")
+        val roots = roots0.map { r ->
+            if (r.version.startsWith("[") || r.version.startsWith("(")) {
+                val v = cleanVersion(r.version)
+                log("  rentang versi ${r.key}:${r.version} dipakai sebagai $v")
+                MavenCoord(r.group, r.artifact, v)
+            } else r
+        }
+
+        val constraints = HashMap<String, String>()
+        val forced = HashSet<String>()
+        for (p in platforms) {
+            checkCancel()
+            val bom = effective(p.coord)
+            log("  BOM ${p.coord}: ${bom.mgmt.size} versi diatur${if (p.enforced) " (dipaksa)" else ""}")
+            for ((k, d) in bom.mgmt) {
+                if (p.enforced) {
+                    constraints[k] = d.v
+                    forced.add(k)
+                } else if (k !in forced) {
+                    val cur = constraints[k]
+                    if (cur == null || compareVersions(d.v, cur) > 0) constraints[k] = d.v
+                }
+            }
+        }
+        /** Versi yang dipakai untuk [key] bila ada yang menawarkan [v], setelah memperhitungkan BOM. */
+        fun candidate(key: String, v: String): String {
+            val c = constraints[key] ?: return v
+            return if (key in forced) c else if (compareVersions(c, v) > 0) c else v
+        }
+
         val chosen = LinkedHashMap<String, String>()
-        for (r in roots) {
-            val cur = chosen[r.key]
-            if (cur == null || compareVersions(r.version, cur) > 0) chosen[r.key] = r.version
+        for (r0 in roots) {
+            val v = if (r0.version.isNotBlank()) candidate(r0.key, r0.version) else constraints[r0.key] ?: throw BuildError(
+                BuildError.Kind.OTHER,
+                "Dependency ${r0.key} tidak punya versi.\nTulis versinya, atau tambahkan platform(\"group:bom:versi\") yang mengaturnya."
+            )
+            val cur = chosen[r0.key]
+            if (cur == null || compareVersions(v, cur) > 0) chosen[r0.key] = v
         }
 
         var order = ArrayList<String>()
@@ -128,8 +168,9 @@ class MavenResolver(
                     if (d.key in excl || "${d.g}:*" in excl || "*:${d.a}" in excl) continue
                     if (d.key in DROP) continue
                     val cur = chosen[d.key]
-                    if (cur == null || compareVersions(d.v, cur) > 0) {
-                        chosen[d.key] = d.v
+                    val cand = candidate(d.key, d.v)
+                    if (cur == null || (d.key in forced && cur != cand) || compareVersions(cand, cur) > 0) {
+                        chosen[d.key] = cand
                         changed = true
                     }
                     queue.add(d.key to (excl + d.exclusions))
