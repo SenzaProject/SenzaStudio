@@ -20,7 +20,7 @@ import java.util.zip.ZipFile
  * class loader bisa gagal dengan SecurityException, yang lalu muncul sebagai
  * "Can't find bundle for base name org.eclipse.jdt.internal.compiler.batch.messages".
  *
- * Caranya di sini: resource org/eclipse/jdt/** diekstrak sekali ke folder biasa (filesDir/forge/ecj-res),
+ * Caranya di sini: semua resource non-kelas di bawah org/eclipse/jdt/ diekstrak sekali ke folder biasa (filesDir/forge/ecj-res),
  * lalu ECJ dimuat oleh [EcjLoader] yang melayani resource dari folder itu sebagai berkas biasa
  * (tidak lewat jalur baca-dalam-APK). Kelas ECJ tetap diambil dari dex APK yang sama.
  */
