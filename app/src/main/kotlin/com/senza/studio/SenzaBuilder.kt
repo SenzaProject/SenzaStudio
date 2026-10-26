@@ -585,7 +585,18 @@ class SenzaBuilder(
         args.addAll(files)
         val sw = StringWriter()
         val pw = PrintWriter(sw, true)
-        val ok = org.eclipse.jdt.internal.compiler.batch.Main(pw, pw, false, null, null).compile(args.toTypedArray())
+        val argv = args.toTypedArray()
+        // ECJ dimuat lewat EcjRunner: resource-nya (messages.properties, tabel parser) dibaca dari
+        // berkas biasa, bukan dari dalam APK (yang di sebagian perangkat melempar SecurityException).
+        val ok = try {
+            EcjRunner.compile(ctx, argv, pw, log)
+        } catch (e: Exception) {
+            log("  ! Pemuat ECJ khusus gagal (${e.javaClass.simpleName}: ${e.message}). Mencoba jalur biasa.")
+            org.eclipse.jdt.internal.compiler.batch.Main(pw, pw, false, null, null).compile(argv)
+        } catch (e: LinkageError) {
+            log("  ! Pemuat ECJ khusus gagal (${e.javaClass.simpleName}: ${e.message}). Mencoba jalur biasa.")
+            org.eclipse.jdt.internal.compiler.batch.Main(pw, pw, false, null, null).compile(argv)
+        }
         pw.flush()
         val text = sw.toString()
         if (text.isNotBlank()) log(text)
