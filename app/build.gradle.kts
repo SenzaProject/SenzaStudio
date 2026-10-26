@@ -19,7 +19,13 @@ android {
     packaging {
         // wajib: supaya libaapt2.so diekstrak ke nativeLibraryDir dan bisa dieksekusi
         jniLibs { useLegacyPackaging = true }
-        resources { pickFirsts += setOf("META-INF/**", "kotlin/**", "**/*.kotlin_builtins") }
+        resources {
+            pickFirsts += setOf("META-INF/**", "kotlin/**", "**/*.kotlin_builtins")
+            // Jar bertanda tangan (ECJ, BouncyCastle, JGit) membawa META-INF/*.SF|*.RSA|*.DSA dan MANIFEST.MF
+            // yang tidak cocok satu sama lain. Di dalam APK ini membuat JarFile melempar SecurityException
+            // ("Invalid signature file digest") setiap resource dibaca lewat class loader (ECJ, D8, dst).
+            excludes += setOf("META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA", "META-INF/*.EC", "META-INF/MANIFEST.MF")
+        }
     }
 
     compileOptions {
