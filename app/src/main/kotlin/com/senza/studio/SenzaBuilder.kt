@@ -488,13 +488,47 @@ class SenzaBuilder(
                         val inputs = ArrayList<java.nio.file.Path>()
                         appDexFiles.forEach { inputs.add(it.toPath()) }
                         libDexDirs.forEach { d -> d.listFiles { f -> f.extension == "dex" }?.sortedBy { it.name }?.forEach { inputs.add(it.toPath()) } }
-                        log("  menggabungkan ${inputs.size} berkas dex")
-                        runD8("penggabungan dex") {
-                            addProgramFiles(inputs)
-                            addLibraryFiles(androidJar.toPath())
-                            setOutput(dexOut.toPath(), OutputMode.DexIndexed)
-                            setMinApiLevel(minSdk)
-                            setMode(CompilationMode.RELEASE)
+                        val mergeFailFp = sha1("mergefail-v1", libIds, "$minSdk", *dsFp)
+                        var merged = false
+                        if (upToDate(cache, "mergefail", mergeFailFp)) {
+                            log("  penggabungan dex per-library pernah gagal untuk set library ini, langsung dex sekaligus")
+                        } else {
+                            log("  menggabungkan ${inputs.size} berkas dex")
+                            try {
+                                runD8("penggabungan dex") {
+                                    addProgramFiles(inputs)
+                                    addLibraryFiles(androidJar.toPath())
+                                    setOutput(dexOut.toPath(), OutputMode.DexIndexed)
+                                    setMinApiLevel(minSdk)
+                                    setMode(CompilationMode.RELEASE)
+                                }
+                                merged = true
+                            } catch (e: BuildError) {
+                                log("  ! ${e.message}")
+                                log("  Penggabungan per-library gagal. Mengulang dengan men-dex semua kelas sekaligus (lebih lambat, lebih aman).")
+                                mark(cache, "mergefail", mergeFailFp)
+                                dexOut.deleteRecursively(); dexOut.mkdirs()
+                            }
+                        }
+                        if (!merged) {
+                            checkCancel()
+                            runD8("seluruh kode aplikasi dan library") {
+                                addProgramFiles(appClassFiles)
+                                if (libJars.isNotEmpty()) addProgramFiles(libJars.map { it.toPath() })
+                                addLibraryFiles(androidJar.toPath())
+                                setOutput(dexOut.toPath(), OutputMode.DexIndexed)
+                                setMinApiLevel(minSdk)
+                                setMode(if (cfg.release) CompilationMode.RELEASE else CompilationMode.DEBUG)
+                                desugar?.let { addDesugaredLibraryConfiguration(it.json) }
+                            }
+                            desugar?.let { ds ->
+                                // dex j$.* hasil L8 ditaruh sebagai dex tambahan di belakang hasil D8
+                                var n = (dexOut.listFiles { f -> f.extension == "dex" }?.size ?: 0) + 1
+                                desugarDex(ds, minSdk).listFiles { f -> f.extension == "dex" }?.sortedBy { it.name }?.forEach {
+                                    it.copyTo(File(dexOut, "classes$n.dex"), overwrite = true)
+                                    n++
+                                }
+                            }
                         }
                     }
                     mark(cache, "dex", dexFp)
@@ -682,20 +716,28 @@ class SenzaBuilder(
     }
 
     private fun runD8(what: String, cfg: D8Command.Builder.() -> Unit) {
+        val errors = ArrayList<String>()
+        val handler = object : DiagnosticsHandler {
+            override fun error(d: Diagnostic) { errors.add(d.diagnosticMessage) }
+            override fun warning(d: Diagnostic) { }
+        }
         try {
-            val b = D8Command.builder()
+            val b = D8Command.builder(handler)
             b.cfg()
             D8.run(b.build())
         } catch (e: Exception) {
-            val msg = (e.message ?: e.javaClass.simpleName)
+            val all = (errors + (e.message ?: e.javaClass.simpleName)).joinToString("\n")
+            // Penyebab sebenarnya ada di diagnostik D8, bukan di pesan umum "Compilation failed to complete".
+            errors.distinct().take(6).forEach { log("  ! D8: " + it.lines().take(3).joinToString(" | ").take(300)) }
             val hint = when {
-                msg.contains("defined multiple times", ignoreCase = true) ->
+                all.contains("defined multiple times", ignoreCase = true) ->
                     "\n(Ada dua library yang berisi kelas yang sama. Hapus salah satunya dari build.gradle.)"
-                msg.contains("Missing class", ignoreCase = true) ->
+                all.contains("Missing class", ignoreCase = true) ->
                     "\n(Library butuh kelas yang belum ada. Tambahkan dependency yang kurang.)"
                 else -> ""
             }
-            throw BuildError(BuildError.Kind.OTHER, "Gagal mengubah $what ke format Android: ${msg.lines().firstOrNull() ?: msg}$hint")
+            val first = (errors.firstOrNull() ?: e.message ?: e.javaClass.simpleName).lines().firstOrNull() ?: ""
+            throw BuildError(BuildError.Kind.OTHER, "Gagal mengubah $what ke format Android: ${first.take(300)}$hint")
         }
     }
 
