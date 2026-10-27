@@ -35,6 +35,36 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 
+      - name: Bersihkan signature bawaan jar dari APK
+        run: |
+          set -e
+          APK=$(ls app/build/outputs/apk/debug/*.apk | head -1)
+          PAT='META-INF/[^/]*\.(SF|RSA|DSA|EC)$|META-INF/MANIFEST\.MF$'
+          echo "Entri signature jar di APK (sebelum):"
+          unzip -Z1 "$APK" | grep -E "$PAT" || echo "(tidak ada)"
+          if unzip -Z1 "$APK" | grep -qE "$PAT"; then
+            BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+            KS="$HOME/.android/debug.keystore"
+            if [ ! -f "$KS" ]; then
+              mkdir -p "$HOME/.android"
+              keytool -genkeypair -keystore "$KS" -storepass android -keypass android \
+                -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            zip -q -d "$APK" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/MANIFEST.MF' || true
+            "$BT/zipalign" -f -p 4 "$APK" "$APK.aligned"
+            mv "$APK.aligned" "$APK"
+            "$BT/apksigner" sign --ks "$KS" --ks-pass pass:android --key-pass pass:android \
+              --ks-key-alias androiddebugkey \
+              --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true \
+              --v4-signing-enabled false "$APK"
+            "$BT/apksigner" verify --verbose "$APK"
+          fi
+          if unzip -Z1 "$APK" | grep -E "$PAT"; then
+            echo "::error::APK masih memuat signature jar"; exit 1
+          fi
+          echo "APK bersih dari signature jar."
+
       - uses: actions/upload-artifact@v4
         with:
           name: SenzaStudio-debug

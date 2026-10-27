@@ -131,6 +131,17 @@ class SenzaBuilder(
         BuildControl.onCancel = { try { proc?.destroy() } catch (_: Throwable) {} }
         try {
             return doBuild(proj, cfg)
+        } catch (e: Throwable) {
+            val bySignature = generateSequence<Throwable>(e) { it.cause }
+                .any { it is SecurityException && (it.message ?: "").contains("signature", ignoreCase = true) }
+            if (bySignature) {
+                val stray = EcjRunner.strayApkSignatureEntries(ctx)
+                log("")
+                log("! Penyebab: APK Senza Studio yang terpasang memuat berkas tanda tangan jar (META-INF) yang tidak cocok,")
+                log("  sehingga resource library tidak bisa dibaca. Berkas di APK: " + (if (stray.isEmpty()) "(tidak terbaca)" else stray.joinToString(", ")))
+                log("  Pasang APK dari build GitHub Actions terbaru lalu coba lagi.")
+            }
+            throw e
         } finally {
             BuildControl.onCancel = null
             proc = null

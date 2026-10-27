@@ -52,6 +52,30 @@ object EcjRunner {
         }
     }
 
+    /**
+     * Daftar berkas tanda tangan jar (berekstensi SF, RSA, DSA, EC, dan MANIFEST.MF di folder META-INF) di dalam APK
+     * aplikasi ini. Berkas seperti ini yang membuat pembacaan resource lewat class loader melempar
+     * SecurityException ("Invalid signature file digest for Manifest main attributes").
+     */
+    fun strayApkSignatureEntries(ctx: Context): List<String> {
+        val out = ArrayList<String>()
+        val info = ctx.applicationInfo
+        for (apk in listOf(info.sourceDir) + (info.splitSourceDirs?.toList() ?: emptyList())) {
+            try {
+                ZipFile(apk).use { zip ->
+                    val entries = zip.entries()
+                    while (entries.hasMoreElements()) {
+                        val n = entries.nextElement().name
+                        if (!n.startsWith("META-INF/") || n.indexOf('/', 9) >= 0) continue
+                        if (n.endsWith(".SF") || n.endsWith(".RSA") || n.endsWith(".DSA") || n.endsWith(".EC") || n == "META-INF/MANIFEST.MF") out.add(n)
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return out
+    }
+
     private fun loaderFor(ctx: Context, log: (String) -> Unit): EcjLoader {
         loader?.let { return it }
         synchronized(this) {
