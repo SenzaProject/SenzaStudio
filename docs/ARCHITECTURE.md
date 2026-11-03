@@ -1,4 +1,4 @@
-# Senza Studio - Architecture (Phase 1)
+# Senza Studio - Architecture (Phase 3)
 
 ```
 app  ->  feature-*  ->  core-design  ->  audio-engine  <-  audio-dsp
@@ -7,7 +7,7 @@ app  ->  feature-*  ->  core-design  ->  audio-engine  <-  audio-dsp
 | Module | Type | Responsibility |
 |---|---|---|
 | `audio-engine` | pure Kotlin/JVM | `AudioEngine` interface, parameter model (schema v1), thread-safe `ParameterStore`, capability reporting. No Android or Compose imports (enforced by `ArchitectureTest`). |
-| `audio-dsp` | pure Kotlin/JVM | Phase 2 DSP: RBJ biquad EQ, compressor, look-ahead limiter, master gain, `DspChain` (scrub -> EQ -> compressor -> gain -> limiter). Float stereo-interleaved, no allocation or locks in `process`. Not yet connected to a live audio path (Phase 4). |
+| `audio-dsp` | pure Kotlin/JVM | Phase 2-3 DSP: RBJ biquad EQ, compressor, look-ahead limiter, master gain, bass, stereo imaging, spatial, loudness meter and normalizer; `DspChain` (scrub -> EQ -> bass -> compressor -> spatial -> imaging -> normalizer -> gain -> limiter -> meters). Float stereo-interleaved, no allocation or locks in `process`. Not yet connected to a live audio path (Phase 4). |
 | `core-design` | Android lib | Theme, tokens, shared components. Depends on `audio-engine` only to render `ModuleCapability` honestly. |
 | `feature-*` | Android lib | Stateless screens: Studio, Equalizer, Spatial, Presets, Settings. |
 | `app` | Android app | Activity, navigation (`Destination`), `EngineViewModel`, manual DI (`AppContainer`). |
@@ -29,7 +29,7 @@ app  ->  feature-*  ->  core-design  ->  audio-engine  <-  audio-dsp
 | Compressor | threshold / ratio / attack / release / knee / makeup | -60..0 dB / 1..20 / 0.1-200 ms / 5-2000 ms / 0-24 dB / 0-24 dB | disabled, -18 dB, 2:1, 10 ms, 120 ms, 6 dB, 0 |
 | Limiter (always on) | ceiling / release | -12..0 dB / 10-1000 ms | -0.3 dB, 80 ms, look-ahead 2 ms |
 
-Parameter schema is now **v2** (adds dynamics). Nothing is persisted yet, so no migration is needed.
+Parameter schema is now **v3** (adds bass, imaging, loudness; see `docs/DSP_P3.md` for the P3 parameter table and measurements). Nothing is persisted yet, so no migration is needed.
 
 ## Known P2 limitations
 - Coefficient changes are not cross-faded (possible small clicks on abrupt changes).

@@ -62,9 +62,10 @@ class NoOpAudioEngine(
     override fun updateParameters(transform: (EngineParameters) -> EngineParameters) = store.update(transform)
 
     private fun reasonFor(module: DspModule): String = when (module) {
-        DspModule.EQUALIZER, DspModule.DYNAMICS, DspModule.PROTECTION ->
+        DspModule.EQUALIZER, DspModule.DYNAMICS, DspModule.PROTECTION,
+        DspModule.BASS, DspModule.STEREO_IMAGING, DspModule.SPATIAL ->
             "DSP exists in :audio-dsp but is not attached to a live audio path until Phase 4"
-        DspModule.BASS, DspModule.STEREO_IMAGING, DspModule.SPATIAL, DspModule.CLARITY -> "Planned for Phase 3 (Advanced DSP)"
+        DspModule.CLARITY -> "Not implemented yet (not part of Phase 3 scope)"
         DspModule.SPECTRUM -> "Planned for Phase 5 (Premium UI)"
     }
 }

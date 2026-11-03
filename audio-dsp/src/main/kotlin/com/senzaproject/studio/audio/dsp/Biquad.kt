@@ -140,3 +140,37 @@ class StereoBiquad {
     }
 }
 
+
+/** Q of a 2nd-order Butterworth section (maximally flat magnitude). */
+internal const val BUTTERWORTH_Q = 0.70710678f
+
+/**
+ * Mono biquad (transposed direct form II, double-precision state) for per-sample use inside
+ * processing modules that mix several signal paths. No allocation; call [flush] once per block.
+ */
+class MonoBiquad {
+    private var b0 = 1.0; private var b1 = 0.0; private var b2 = 0.0
+    private var a1 = 0.0; private var a2 = 0.0
+    private var z1 = 0.0; private var z2 = 0.0
+
+    fun set(c: BiquadCoefficients) {
+        b0 = c.b0; b1 = c.b1; b2 = c.b2; a1 = c.a1; a2 = c.a2
+    }
+
+    fun reset() {
+        z1 = 0.0; z2 = 0.0
+    }
+
+    fun tick(x: Double): Double {
+        val y = b0 * x + z1
+        z1 = b1 * x - a1 * y + z2
+        z2 = b2 * x - a2 * y
+        return y
+    }
+
+    /** Flush denormals (slow on some CPUs). */
+    fun flush() {
+        if (kotlin.math.abs(z1) < 1e-30) z1 = 0.0
+        if (kotlin.math.abs(z2) < 1e-30) z2 = 0.0
+    }
+}
