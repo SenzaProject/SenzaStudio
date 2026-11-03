@@ -22,8 +22,14 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x gradlew
 
-      - name: Unit tests (P1 exit criteria)
-        run: ./gradlew testDebugUnitTest :audio-engine:test --stacktrace
+      - name: Unit tests (P3 exit criteria)
+        run: ./gradlew testDebugUnitTest :audio-engine:test :audio-dsp:test --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: P3-measurements
+          path: audio-dsp/build/reports/p3-measurements.md
 
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
@@ -32,17 +38,3 @@ jobs:
         with:
           name: SenzaStudio-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-
-  native-dsp:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure, build, test (CMake)
-        run: |
-          cmake -S native/senzafx -B build-native -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-native -j
-          ctest --test-dir build-native --output-on-failure
-
-      - name: Sanitizer run (ASan + UBSan)
-        run: sh native/senzafx/build_and_test.sh

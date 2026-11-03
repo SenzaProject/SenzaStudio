@@ -9,7 +9,7 @@ git config --global user.email "dionoberutu06@gmail.com"
 [ -d .git ] || git init -b main
 git add -A
 git update-index --chmod=+x gradlew
-git commit -m "P2 Core DSP in native C++ (senzafx): biquad EQ, compressor, limiter, chain + tests" || true
+git commit -m "P3 Advanced DSP: bass, stereo imaging, spatial, loudness" || true
 
 git remote remove origin 2>/dev/null || true
 git remote add origin https://github.com/SenzaProject/SenzaStudio.git

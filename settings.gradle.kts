@@ -19,6 +19,7 @@ include(
     ":app",
     ":core-design",
     ":audio-engine",
+    ":audio-dsp",
     ":feature-studio",
     ":feature-equalizer",
     ":feature-spatial",

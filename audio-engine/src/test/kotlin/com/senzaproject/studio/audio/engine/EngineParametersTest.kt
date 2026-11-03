@@ -58,6 +58,25 @@ class EngineParametersTest {
         assertEquals(20f, p.dynamics.compressor.ratio, 0f)
         assertEquals(10f, p.dynamics.compressor.attackMs, 0f)
         assertEquals(0f, p.dynamics.limiter.ceilingDb, 0f)
-        assertEquals(2, p.schemaVersion)
+        assertEquals(3, p.schemaVersion)
+    }
+
+    @Test
+    fun advancedModulesAreSanitized() {
+        val p = EngineParameters(
+            bass = BassParameters(subBassDb = 99f, harmonics = 5f, punch = Float.NaN, crossoverHz = 1f),
+            imaging = ImagingParameters(midGainDb = -99f, balance = 4f, monoBelowHz = 5f),
+            dynamics = DynamicsParameters(loudness = LoudnessParameters(targetLufs = 0f, maxBoostDb = 50f, responseSeconds = 0f)),
+        ).sanitized()
+        assertEquals(12f, p.bass.subBassDb, 0f)
+        assertEquals(1f, p.bass.harmonics, 0f)
+        assertEquals(0f, p.bass.punch, 0f)
+        assertEquals(40f, p.bass.crossoverHz, 0f)
+        assertEquals(-12f, p.imaging.midGainDb, 0f)
+        assertEquals(1f, p.imaging.balance, 0f)
+        assertEquals(0f, p.imaging.monoBelowHz, 0f)
+        assertEquals(-8f, p.dynamics.loudness.targetLufs, 0f)
+        assertEquals(12f, p.dynamics.loudness.maxBoostDb, 0f)
+        assertEquals(1f, p.dynamics.loudness.responseSeconds, 0f)
     }
 }
