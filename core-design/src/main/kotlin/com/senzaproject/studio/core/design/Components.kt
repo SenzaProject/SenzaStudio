@@ -85,6 +85,8 @@ fun StatusChip(text: String, tone: StatusTone) {
         text = text.uppercase(),
         style = MaterialTheme.typography.labelSmall,
         color = color,
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(color.copy(alpha = 0.14f))
@@ -100,17 +102,22 @@ fun CapabilityRow(capability: ModuleCapability) {
         is Availability.Experimental -> Triple("Experimental", StatusTone.Caution, a.note)
         is Availability.Unavailable -> Triple("Not available", StatusTone.Muted, a.reason)
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(capability.module.displayName, style = MaterialTheme.typography.titleMedium, color = SenzaColors.TextPrimary)
-            if (detail != null) {
-                Text(detail, style = MaterialTheme.typography.bodyMedium, color = SenzaColors.TextMuted)
-            }
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                capability.module.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                color = SenzaColors.TextPrimary,
+                modifier = Modifier.weight(1f).padding(end = 12.dp),
+            )
+            StatusChip(label, tone)
         }
-        StatusChip(label, tone)
+        if (detail != null) {
+            Text(detail, style = MaterialTheme.typography.bodyMedium, color = SenzaColors.TextMuted)
+        }
     }
 }

@@ -40,5 +40,7 @@ fun EqualizerScreen(eq: EqParameters, capability: ModuleCapability) {
     }
 }
 
+private fun trimmed(v: Float): String = String.format(Locale.US, "%.2f", v).trimEnd('0').trimEnd('.')
+
 private fun formatHz(hz: Float): String =
-    if (hz >= 1_000f) String.format(Locale.US, "%g kHz", hz / 1_000f) else String.format(Locale.US, "%g Hz", hz)
+    if (hz >= 1_000f) "${trimmed(hz / 1_000f)} kHz" else "${trimmed(hz)} Hz"

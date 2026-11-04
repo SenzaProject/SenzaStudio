@@ -6,9 +6,12 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -49,12 +52,12 @@ private val SenzaDarkScheme = darkColorScheme(
 )
 
 private val SenzaTypography = Typography(
-    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
-    labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.2.sp),
-    labelMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.8.sp),
-    labelSmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.8.sp),
+    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 30.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
+    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, letterSpacing = 0.sp),
+    labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 13.sp, letterSpacing = 0.8.sp),
+    labelMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.4.sp),
+    labelSmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 0.3.sp),
 )
 
 private val SenzaShapes = Shapes(
@@ -63,12 +66,20 @@ private val SenzaShapes = Shapes(
     large = RoundedCornerShape(20.dp),
 )
 
+/** Largest system font scale the layouts are designed for (larger values still scale, up to this cap). */
+private const val MAX_FONT_SCALE = 1.15f
+
 @Composable
 fun SenzaTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = SenzaDarkScheme,
-        typography = SenzaTypography,
-        shapes = SenzaShapes,
-        content = content,
-    )
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale = density.fontScale.coerceAtMost(MAX_FONT_SCALE)),
+    ) {
+        MaterialTheme(
+            colorScheme = SenzaDarkScheme,
+            typography = SenzaTypography,
+            shapes = SenzaShapes,
+            content = content,
+        )
+    }
 }

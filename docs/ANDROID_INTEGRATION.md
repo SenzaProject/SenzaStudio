@@ -18,7 +18,7 @@ Availability is decided by `CompatibilityEvaluator` (pure Kotlin, unit-tested) f
 
 ## Device routing and profiles
 - `DeviceMonitor` lists connected outputs and updates on plug/unplug (`AudioDeviceCallback`).
-- Android does not tell an app which device the system mix uses. While the built-in player runs, its route is **confirmed** (`AudioTrack.getRoutedDevice`); otherwise the UI shows a **likely** route (USB > Bluetooth > wired > HDMI > other > speaker > earpiece) and labels it as a guess.
+- Android does not tell an app which device the system mix uses. While the built-in player runs, its route is **confirmed** (`AudioTrack.getRoutedDevice`); otherwise the UI shows a **likely** route (USB > Bluetooth > wired > HDMI > speaker > earpiece > other) and labels it as a guess.
 - `DeviceProfiles` keeps one parameter set per output type (speaker, wired, Bluetooth, USB, HDMI, other) and switches when the active type changes (toggle in Settings). Profiles live in memory for now; saving across restarts arrives with presets.
 
 ## Diagnostics shown while playing

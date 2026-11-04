@@ -53,9 +53,9 @@ object ProfileResolver {
         DeviceType.BLUETOOTH,
         DeviceType.WIRED_HEADPHONES,
         DeviceType.HDMI,
-        DeviceType.OTHER,
         DeviceType.BUILTIN_SPEAKER,
         DeviceType.EARPIECE,
+        DeviceType.OTHER, // unknown/internal buses (e.g. a phone's own "model name" output) rank last
     )
 
     fun pickActive(devices: List<OutputDevice>, routedDeviceId: Int?): ActiveRoute {

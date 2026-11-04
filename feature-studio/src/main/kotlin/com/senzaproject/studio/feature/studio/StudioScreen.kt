@@ -1,12 +1,15 @@
 package com.senzaproject.studio.feature.studio
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.senzaproject.studio.audio.engine.ActiveRoute
 import com.senzaproject.studio.audio.engine.EngineCapabilities
@@ -95,13 +98,18 @@ private fun PlayerCard(player: PlayerState, onOpenFile: () -> Unit, onPlayPause:
             Text("${clock(player.positionMs)}$total", style = MaterialTheme.typography.bodyMedium, color = SenzaColors.TextMuted)
         }
         player.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = SenzaColors.Danger) }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onOpenFile) { Text("Open file") }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val canToggle = player.phase == PlayerPhase.PLAYING || player.phase == PlayerPhase.PAUSED
-            OutlinedButton(onClick = onPlayPause, enabled = canToggle) {
-                Text(if (player.phase == PlayerPhase.PAUSED) "Resume" else "Pause")
+            val padding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+            Button(onClick = onOpenFile, modifier = Modifier.weight(1.3f), contentPadding = padding) {
+                Text("Open file", maxLines = 1, softWrap = false)
             }
-            OutlinedButton(onClick = onStop, enabled = canToggle) { Text("Stop") }
+            OutlinedButton(onClick = onPlayPause, enabled = canToggle, modifier = Modifier.weight(1f), contentPadding = padding) {
+                Text(if (player.phase == PlayerPhase.PAUSED) "Resume" else "Pause", maxLines = 1, softWrap = false)
+            }
+            OutlinedButton(onClick = onStop, enabled = canToggle, modifier = Modifier.weight(1f), contentPadding = padding) {
+                Text("Stop", maxLines = 1, softWrap = false)
+            }
         }
         Text(
             "Only audio played here is processed. Other apps' audio is not touched (see Settings for the experimental path).",

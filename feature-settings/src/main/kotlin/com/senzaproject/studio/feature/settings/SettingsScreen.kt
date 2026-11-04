@@ -3,6 +3,7 @@ package com.senzaproject.studio.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -62,7 +63,12 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(path.path.displayName, style = MaterialTheme.typography.titleMedium, color = SenzaColors.TextPrimary)
+                    Text(
+                        path.path.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = SenzaColors.TextPrimary,
+                        modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    )
                     StatusChip(label, tone)
                 }
                 if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = SenzaColors.TextMuted)
