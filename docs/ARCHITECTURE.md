@@ -1,13 +1,15 @@
-# Senza Studio - Architecture (Phase 3)
+# Senza Studio - Architecture (Phase 4)
 
 ```
 app  ->  feature-*  ->  core-design  ->  audio-engine  <-  audio-dsp
+app  ->  audio-android  ->  audio-engine, audio-dsp
 ```
 
 | Module | Type | Responsibility |
 |---|---|---|
 | `audio-engine` | pure Kotlin/JVM | `AudioEngine` interface, parameter model (schema v1), thread-safe `ParameterStore`, capability reporting. No Android or Compose imports (enforced by `ArchitectureTest`). |
-| `audio-dsp` | pure Kotlin/JVM | Phase 2-3 DSP: RBJ biquad EQ, compressor, look-ahead limiter, master gain, bass, stereo imaging, spatial, loudness meter and normalizer; `DspChain` (scrub -> EQ -> bass -> compressor -> spatial -> imaging -> normalizer -> gain -> limiter -> meters). Float stereo-interleaved, no allocation or locks in `process`. Not yet connected to a live audio path (Phase 4). |
+| `audio-android` | Android library | `LiveAudioEngine` (focus, noisy, local player), `DeviceMonitor`, `PlatformProbe`, experimental `SessionEffectController`. Only module that touches platform audio APIs. |
+| `audio-dsp` | pure Kotlin/JVM | Phase 2-3 DSP: RBJ biquad EQ, compressor, look-ahead limiter, master gain, bass, stereo imaging, spatial, loudness meter and normalizer; `DspChain` (scrub -> EQ -> bass -> compressor -> spatial -> imaging -> normalizer -> gain -> limiter -> meters). Float stereo-interleaved, no allocation or locks in `process`. Connected to a live audio path by `audio-android` (built-in player) in Phase 4. |
 | `core-design` | Android lib | Theme, tokens, shared components. Depends on `audio-engine` only to render `ModuleCapability` honestly. |
 | `feature-*` | Android lib | Stateless screens: Studio, Equalizer, Spatial, Presets, Settings. |
 | `app` | Android app | Activity, navigation (`Destination`), `EngineViewModel`, manual DI (`AppContainer`). |

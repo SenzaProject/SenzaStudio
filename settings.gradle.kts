@@ -20,6 +20,7 @@ include(
     ":core-design",
     ":audio-engine",
     ":audio-dsp",
+    ":audio-android",
     ":feature-studio",
     ":feature-equalizer",
     ":feature-spatial",

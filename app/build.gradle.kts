@@ -12,8 +12,8 @@ android {
         applicationId = "com.senzaproject.studio"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-p1"
+        versionCode = 4
+        versionName = "0.4.0-p4"
     }
 
     buildTypes {
@@ -40,6 +40,7 @@ kotlin {
 dependencies {
     implementation(project(":core-design"))
     implementation(project(":audio-engine"))
+    implementation(project(":audio-android"))
     implementation(project(":feature-studio"))
     implementation(project(":feature-equalizer"))
     implementation(project(":feature-spatial"))
@@ -51,6 +52,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.coroutines.android)
 
     testImplementation(libs.junit)
 }
