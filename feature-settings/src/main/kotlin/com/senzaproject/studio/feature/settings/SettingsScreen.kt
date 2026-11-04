@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.senzaproject.studio.audio.engine.Availability
 import com.senzaproject.studio.audio.engine.CompatibilityReport
 import com.senzaproject.studio.audio.engine.DeviceType
