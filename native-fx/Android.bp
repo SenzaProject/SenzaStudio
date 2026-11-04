@@ -1,0 +1,26 @@
+// Untuk build di dalam source tree AOSP/SenzaOS (vendor/senza/audio/libsenzastudiofx/).
+// Header effect asli AOSP dipakai (folder compat/ TIDAK dipakai di sini).
+// Jika nama header_libs tidak ditemukan di tree-mu: cari `grep -rn "audio_effect.h" --include=Android.bp .`
+cc_library_shared {
+    name: "libsenzastudiofx",
+    vendor: true,
+    relative_install_path: "soundfx",
+    compile_multilib: "both",   // HAL audio MTK sering 32-bit; pasang lib dan lib64
+    srcs: [
+        "src/senzafx_dsp.cpp",
+        "src/senzafx_effect.cpp",
+    ],
+    header_libs: [
+        "libhardware_headers",
+        "libsystem_headers",
+        "libaudioeffects",
+    ],
+    cflags: [
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fvisibility=hidden",
+    ],
+    cppflags: ["-fno-exceptions", "-fno-rtti"],
+}
