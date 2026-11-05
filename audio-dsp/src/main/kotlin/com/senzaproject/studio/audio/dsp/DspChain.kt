@@ -23,6 +23,7 @@ internal class ChainConfig(
     val spatial: SpatialConfig,
     val imaging: ImagingConfig,
     val loudness: LoudnessConfig,
+    val bypass: Boolean,
 ) {
     companion object {
         fun from(p: EngineParameters, sampleRate: Int): ChainConfig {
@@ -55,6 +56,7 @@ internal class ChainConfig(
                 spatial = SpatialConfig.from(s.spatial, sampleRate),
                 imaging = ImagingConfig.from(s.imaging, sampleRate),
                 loudness = LoudnessConfig.from(s.dynamics.loudness, sampleRate),
+                bypass = s.bypass,
             )
         }
     }
@@ -64,6 +66,7 @@ internal class ChainConfig(
  * Stereo (interleaved float) processing chain:
  *   scrub -> EQ -> bass -> compressor -> spatial -> imaging -> loudness normalizer
  *         -> master gain -> limiter (always on, safe output) -> meters (read-only).
+ * With [EngineParameters.bypass] everything between the scrub and the limiter is skipped (A/B).
  *
  * Order rationale: the bass stage sits before the compressor so added low energy is controlled by
  * it; spatial and imaging come after the compressor so reflections cannot trigger gain reduction,
@@ -89,12 +92,19 @@ class DspChain(private val sampleRate: Int) {
     private val pending = AtomicReference<ChainConfig?>(null)
     private var eqEnabled = false
     private var compressorEnabled = false
+    private var bypass = false
 
     /** Loudness (momentary / short-term / integrated LUFS) and peaks of the chain OUTPUT. */
     val loudnessMeter = LoudnessMeter(sampleRate)
 
     /** Phase correlation and side/mid balance of the chain OUTPUT. */
     val stereoMeter = StereoMeter(sampleRate)
+
+    /** Peak and RMS levels of the chain OUTPUT. */
+    val levelMeter = LevelMeter(sampleRate)
+
+    /** 32-band spectrum of the chain OUTPUT. */
+    val spectrum = SpectrumAnalyzer(sampleRate)
 
     /** Fixed delay introduced by the limiter's look-ahead; constant for the lifetime of the chain. */
     val latencySamples: Int get() = limiter.latencySamples
@@ -117,6 +127,8 @@ class DspChain(private val sampleRate: Int) {
     fun resetMeters() {
         loudnessMeter.reset()
         stereoMeter.reset()
+        levelMeter.reset()
+        spectrum.reset()
     }
 
     fun process(buf: FloatArray, frames: Int) {
@@ -130,22 +142,27 @@ class DspChain(private val sampleRate: Int) {
             i++
         }
 
-        if (eqEnabled) {
-            for (band in eq) if (band.active) band.process(buf, n)
+        if (!bypass) {
+            if (eqEnabled) {
+                for (band in eq) if (band.active) band.process(buf, n)
+            }
+            bass.process(buf, n)
+            if (compressorEnabled) compressor.process(buf, n)
+            spatial.process(buf, n)
+            imager.process(buf, n)
+            normalizer.process(buf, n)
+            master.process(buf, n)
         }
-        bass.process(buf, n)
-        if (compressorEnabled) compressor.process(buf, n)
-        spatial.process(buf, n)
-        imager.process(buf, n)
-        normalizer.process(buf, n)
-        master.process(buf, n)
         limiter.process(buf, n)
 
         loudnessMeter.process(buf, n)
         stereoMeter.process(buf, n)
+        levelMeter.process(buf, n)
+        spectrum.process(buf, n)
     }
 
     private fun apply(c: ChainConfig) {
+        bypass = c.bypass
         eqEnabled = c.eqEnabled
         for (i in eq.indices) {
             val coeffs = c.bands[i]

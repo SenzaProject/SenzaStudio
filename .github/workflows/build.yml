@@ -22,7 +22,7 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x gradlew
 
-      - name: Unit tests (P4 exit criteria)
+      - name: Unit tests (P5 exit criteria)
         run: ./gradlew testDebugUnitTest :audio-engine:test :audio-dsp:test --stacktrace
 
       - uses: actions/upload-artifact@v4

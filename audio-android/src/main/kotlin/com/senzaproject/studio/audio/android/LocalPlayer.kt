@@ -15,6 +15,8 @@ import com.senzaproject.studio.audio.dsp.DspChain
 import com.senzaproject.studio.audio.dsp.PcmConvert
 import com.senzaproject.studio.audio.engine.EngineDiagnostics
 import com.senzaproject.studio.audio.engine.EngineParameters
+import com.senzaproject.studio.audio.engine.MeterSnapshot
+import com.senzaproject.studio.audio.engine.SPECTRUM_BANDS
 import com.senzaproject.studio.audio.engine.PlayerPhase
 import com.senzaproject.studio.audio.engine.PlayerState
 
@@ -36,6 +38,7 @@ internal class LocalPlayer(
         fun onPlayerState(state: PlayerState)
         fun onDiagnostics(diagnostics: EngineDiagnostics, routedDeviceId: Int?)
         fun onChain(chain: DspChain?)
+        fun onMeters(meters: MeterSnapshot)
     }
 
     @Volatile private var stopRequested = false
@@ -113,6 +116,7 @@ internal class LocalPlayer(
             var floatPcm = false
             var framesWritten = 0L
             var lastPublish = 0L
+            var lastMeters = 0L
             var underruns = 0
             var dspFailures = 0
             var clipped = 0
@@ -147,6 +151,27 @@ internal class LocalPlayer(
                         phaseCorrelation = c.stereoMeter.correlation,
                     ),
                     t.routedDevice?.id,
+                )
+            }
+
+            fun publishMeters() {
+                val c = chain ?: return
+                val bands = FloatArray(SPECTRUM_BANDS)
+                c.spectrum.snapshot(bands)
+                listener.onMeters(
+                    MeterSnapshot(
+                        peakDbLeft = c.levelMeter.peakDbLeft,
+                        peakDbRight = c.levelMeter.peakDbRight,
+                        rmsDbLeft = c.levelMeter.rmsDbLeft,
+                        rmsDbRight = c.levelMeter.rmsDbRight,
+                        momentaryLufs = c.loudnessMeter.momentaryLufs,
+                        shortTermLufs = c.loudnessMeter.shortTermLufs,
+                        truePeakDb = c.loudnessMeter.truePeakDb,
+                        phaseCorrelation = c.stereoMeter.correlation,
+                        gainReductionDb = c.gainReductionDb,
+                        normalizerGainDb = c.normalizerGainDb,
+                        spectrumDb = bands,
+                    ),
                 )
             }
 
@@ -223,6 +248,10 @@ internal class LocalPlayer(
                     framesWritten += frames
                 }
                 val now = System.nanoTime()
+                if (now - lastMeters > METER_INTERVAL_NS) {
+                    lastMeters = now
+                    publishMeters()
+                }
                 if (now - lastPublish > PUBLISH_INTERVAL_NS) {
                     lastPublish = now
                     publishState(PlayerPhase.PLAYING)
@@ -304,6 +333,7 @@ internal class LocalPlayer(
             }
             track = null
             listener.onChain(null)
+            listener.onMeters(MeterSnapshot.SILENT)
         }
     }
 
@@ -314,5 +344,6 @@ internal class LocalPlayer(
         const val DUCK_VOLUME = 0.2f
         const val CLIP_LEVEL = 0.9999f
         const val PUBLISH_INTERVAL_NS = 250_000_000L
+        const val METER_INTERVAL_NS = 40_000_000L
     }
 }

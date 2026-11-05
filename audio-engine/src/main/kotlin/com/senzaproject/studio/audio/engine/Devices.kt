@@ -80,6 +80,15 @@ class DeviceProfiles(var autoSwitch: Boolean = true) {
 
     fun hasProfile(type: DeviceType): Boolean = saved.containsKey(type)
 
+    /** Copy of all saved profiles, e.g. for persisting them. */
+    fun snapshot(): Map<DeviceType, EngineParameters> = HashMap(saved)
+
+    /** Replaces the saved profiles (e.g. after reading them from storage); does not change the active type. */
+    fun restore(profiles: Map<DeviceType, EngineParameters>) {
+        saved.clear()
+        for ((type, p) in profiles) saved[type] = p.sanitized()
+    }
+
     fun save(type: DeviceType, parameters: EngineParameters) {
         saved[type] = parameters.sanitized()
     }

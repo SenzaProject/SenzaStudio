@@ -12,6 +12,7 @@ import com.senzaproject.studio.audio.android.SessionEffectController
 import com.senzaproject.studio.audio.engine.CompatibilityEvaluator
 import com.senzaproject.studio.audio.engine.CompatibilityReport
 import com.senzaproject.studio.audio.engine.DeviceProfiles
+import com.senzaproject.studio.audio.engine.FilePresetStore
 import com.senzaproject.studio.audio.engine.PlatformFacts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ class AppContainer(private val context: Context) {
     val deviceMonitor = DeviceMonitor(context)
     val sessionEffects = SessionEffectController(context)
     val profiles = DeviceProfiles()
+    val presetStore = FilePresetStore(context.filesDir)
 
     private var facts = PlatformFacts(sdkInt = Build.VERSION.SDK_INT, devices = deviceMonitor.devices.value)
     private val _report = MutableStateFlow(CompatibilityEvaluator.evaluate(facts))

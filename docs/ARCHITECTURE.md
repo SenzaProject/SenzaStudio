@@ -1,4 +1,4 @@
-# Senza Studio - Architecture (Phase 4)
+# Senza Studio - Architecture (Phase 5)
 
 ```
 app  ->  feature-*  ->  core-design  ->  audio-engine  <-  audio-dsp
@@ -31,7 +31,7 @@ app  ->  audio-android  ->  audio-engine, audio-dsp
 | Compressor | threshold / ratio / attack / release / knee / makeup | -60..0 dB / 1..20 / 0.1-200 ms / 5-2000 ms / 0-24 dB / 0-24 dB | disabled, -18 dB, 2:1, 10 ms, 120 ms, 6 dB, 0 |
 | Limiter (always on) | ceiling / release | -12..0 dB / 10-1000 ms | -0.3 dB, 80 ms, look-ahead 2 ms |
 
-Parameter schema is now **v3** (adds bass, imaging, loudness; see `docs/DSP_P3.md` for the P3 parameter table and measurements). Nothing is persisted yet, so no migration is needed.
+Parameter schema is now **v4** (adds bypass; presets and persistence are in `PresetCodec`/`FilePresetStore`, see `docs/UI_P5.md`); v3 (adds bass, imaging, loudness; see `docs/DSP_P3.md` for the P3 parameter table and measurements). Nothing is persisted yet, so no migration is needed.
 
 ## Known P2 limitations
 - Coefficient changes are not cross-faded (possible small clicks on abrupt changes).

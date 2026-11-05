@@ -17,6 +17,7 @@ import com.senzaproject.studio.audio.engine.EngineDiagnostics
 import com.senzaproject.studio.audio.engine.EngineParameters
 import com.senzaproject.studio.audio.engine.EngineState
 import com.senzaproject.studio.audio.engine.EngineStatus
+import com.senzaproject.studio.audio.engine.MeterSnapshot
 import com.senzaproject.studio.audio.engine.OutputDevice
 import com.senzaproject.studio.audio.engine.ParameterStore
 import com.senzaproject.studio.audio.engine.PlayerPhase
@@ -60,6 +61,10 @@ class LiveAudioEngine(
     private val _diagnostics = MutableStateFlow(EngineDiagnostics())
     val diagnostics: StateFlow<EngineDiagnostics> = _diagnostics.asStateFlow()
 
+    private val _meters = MutableStateFlow(MeterSnapshot.SILENT)
+    /** Live levels, loudness and spectrum of the processed output (about 25 updates per second while playing). */
+    val meters: StateFlow<MeterSnapshot> = _meters.asStateFlow()
+
     private val _routedDeviceId = MutableStateFlow<Int?>(null)
     /** Device id the engine's own stream is routed to (confirmed by the platform), or null when not playing. */
     val routedDeviceId: StateFlow<Int?> = _routedDeviceId.asStateFlow()
@@ -69,6 +74,7 @@ class LiveAudioEngine(
         override fun onDiagnostics(diagnostics: EngineDiagnostics, routedDeviceId: Int?) =
             handleDiagnostics(diagnostics, routedDeviceId)
         override fun onChain(chain: DspChain?) = handleChain(chain)
+        override fun onMeters(meters: MeterSnapshot) { _meters.value = meters }
     }
 
     private val player = LocalPlayer(appContext, { store.state.value }, playerListener)

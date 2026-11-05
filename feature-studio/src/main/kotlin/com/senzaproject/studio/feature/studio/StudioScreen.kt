@@ -9,40 +9,57 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.senzaproject.studio.audio.engine.ActiveRoute
 import com.senzaproject.studio.audio.engine.EngineCapabilities
 import com.senzaproject.studio.audio.engine.EngineDiagnostics
+import com.senzaproject.studio.audio.engine.EngineParameters
+import com.senzaproject.studio.audio.engine.MeterSnapshot
+import com.senzaproject.studio.audio.engine.ParameterEdit
 import com.senzaproject.studio.audio.engine.EngineState
 import com.senzaproject.studio.audio.engine.EngineStatus
 import com.senzaproject.studio.audio.engine.OutputDevice
 import com.senzaproject.studio.audio.engine.PlayerPhase
 import com.senzaproject.studio.audio.engine.PlayerState
 import com.senzaproject.studio.core.design.CapabilityRow
+import com.senzaproject.studio.core.design.LevelBar
 import com.senzaproject.studio.core.design.SectionLabel
 import com.senzaproject.studio.core.design.SenzaCard
 import com.senzaproject.studio.core.design.SenzaColors
 import com.senzaproject.studio.core.design.SenzaScreen
 import com.senzaproject.studio.core.design.StatusChip
+import com.senzaproject.studio.core.design.SpectrumView
 import com.senzaproject.studio.core.design.StatusTone
 import java.util.Locale
 
-/** Everything the Studio screen shows, as plain data. */
+/** Everything the Studio screen shows, as plain data. [meters] is a State so only the meter cards recompose at 25 Hz. */
 data class StudioUi(
     val engine: EngineState,
     val capabilities: EngineCapabilities,
+    val parameters: EngineParameters,
     val player: PlayerState,
     val route: ActiveRoute,
     val devices: List<OutputDevice>,
     val diagnostics: EngineDiagnostics,
+    val meters: State<MeterSnapshot>,
 )
 
 @Composable
-fun StudioScreen(ui: StudioUi, onOpenFile: () -> Unit, onPlayPause: () -> Unit, onStop: () -> Unit) {
+fun StudioScreen(
+    ui: StudioUi,
+    onOpenFile: () -> Unit,
+    onPlayPause: () -> Unit,
+    onStop: () -> Unit,
+    onEdit: ParameterEdit,
+) {
     SenzaScreen(title = "STUDIO", subtitle = "Professional audio control") {
         EngineCard(ui.engine)
         PlayerCard(ui.player, onOpenFile, onPlayPause, onStop)
+        MetersCard(ui.meters)
+        SpectrumCard(ui.meters)
+        MasterCard(ui.parameters, ui.capabilities, onEdit)
         OutputCard(ui.route, ui.devices)
         if (ui.player.phase == PlayerPhase.PLAYING || ui.player.phase == PlayerPhase.PAUSED) {
             DiagnosticsCard(ui.diagnostics)
@@ -58,6 +75,36 @@ fun StudioScreen(ui: StudioUi, onOpenFile: () -> Unit, onPlayPause: () -> Unit, 
         }
     }
 }
+
+@Composable
+private fun MetersCard(meters: State<MeterSnapshot>) {
+    val m = meters.value
+    SenzaCard {
+        SectionLabel("Output meters")
+        LevelBar("L", m.peakDbLeft, m.rmsDbLeft)
+        LevelBar("R", m.peakDbRight, m.rmsDbRight)
+        Line("Loudness", "${lufs(m.momentaryLufs)} momentary, ${lufs(m.shortTermLufs)} short-term")
+        Line("True peak (estimate)", if (m.truePeakDb <= -119.0) "-inf dBTP" else "${fmt(m.truePeakDb)} dBTP")
+        Line("Phase correlation", fmt(m.phaseCorrelation))
+        if (m.gainReductionDb < -0.1) Line("Compressor reduction", "${fmt(m.gainReductionDb)} dB")
+        if (kotlin.math.abs(m.normalizerGainDb) > 0.1) Line("Normalizer gain", "${fmt(m.normalizerGainDb)} dB")
+    }
+}
+
+@Composable
+private fun SpectrumCard(meters: State<MeterSnapshot>) {
+    SenzaCard {
+        SectionLabel("Spectrum")
+        SpectrumView(meters.value.spectrumDb)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            for (label in listOf("20 Hz", "200", "2 k", "20 k")) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = SenzaColors.TextMuted)
+            }
+        }
+    }
+}
+
+private fun lufs(v: Double): String = if (v <= -119.0) "-inf LUFS" else "${fmt(v)} LUFS"
 
 @Composable
 private fun EngineCard(state: EngineState) {

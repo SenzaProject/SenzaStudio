@@ -1,7 +1,7 @@
 package com.senzaproject.studio.audio.engine
 
 /**
- * Parameter model of the Senza audio engine (schema v3).
+ * Parameter model of the Senza audio engine (schema v4).
  *
  * Every value is range-checked by [sanitized]; the engine never receives NaN,
  * infinity or out-of-range values, whatever the UI or a preset import sends.
@@ -196,6 +196,8 @@ data class EngineParameters(
     val dynamics: DynamicsParameters = DynamicsParameters(),
     val bass: BassParameters = BassParameters(),
     val imaging: ImagingParameters = ImagingParameters(),
+    /** A/B switch: skips every module except the always-on limiter (safe output). */
+    val bypass: Boolean = false,
 ) {
     fun sanitized(): EngineParameters = copy(
         schemaVersion = SCHEMA_VERSION,
@@ -208,10 +210,13 @@ data class EngineParameters(
     )
 
     companion object {
-        const val SCHEMA_VERSION = 3
+        const val SCHEMA_VERSION = 4
         const val MIN_MASTER_GAIN_DB = -24f
         const val MAX_MASTER_GAIN_DB = 6f
     }
 }
+
+/** A UI edit: receives a function that maps the current parameters to the new ones (the engine sanitizes the result). */
+typealias ParameterEdit = ((EngineParameters) -> EngineParameters) -> Unit
 
 internal fun Float.finiteOr(fallback: Float): Float = if (isFinite()) this else fallback

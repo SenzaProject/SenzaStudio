@@ -3,6 +3,7 @@ package com.senzaproject.studio
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -11,8 +12,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -24,10 +28,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.senzaproject.studio.audio.engine.DspModule
+import kotlinx.coroutines.delay
 import com.senzaproject.studio.core.design.SenzaColors
 import com.senzaproject.studio.feature.equalizer.EqualizerScreen
 import com.senzaproject.studio.feature.presets.PresetsScreen
+import com.senzaproject.studio.feature.presets.PresetsUi
 import com.senzaproject.studio.feature.settings.AppInfo
 import com.senzaproject.studio.feature.settings.SessionEffectsUi
 import com.senzaproject.studio.feature.settings.SettingsScreen
@@ -53,6 +58,13 @@ fun SenzaStudioRoot(appInfo: AppInfo) {
     val sessionError by vm.sessionEffects.error.collectAsStateWithLifecycle()
     val autoSwitch by vm.autoSwitchProfiles.collectAsStateWithLifecycle()
     val activeProfile by vm.activeProfile.collectAsStateWithLifecycle()
+    val eqCurve by vm.eqCurve.collectAsStateWithLifecycle()
+    val userPresets by vm.userPresets.collectAsStateWithLifecycle()
+    val presetProblems by vm.presetProblems.collectAsStateWithLifecycle()
+    val appliedPreset by vm.appliedPresetId.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
+    // Kept as a State (not unwrapped here) so only the meter cards recompose at 25 Hz, not the whole app.
+    val meters = vm.meters.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.open(uri)
     }
@@ -72,47 +84,78 @@ fun SenzaStudioRoot(appInfo: AppInfo) {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = Destination.start.route,
-            modifier = Modifier.padding(padding),
-        ) {
-            composable(Destination.STUDIO.route) {
-                StudioScreen(
-                    ui = StudioUi(engineState, capabilities, player, route, devices, diagnostics),
-                    onOpenFile = { picker.launch(arrayOf("audio/*")) },
-                    onPlayPause = vm::togglePlayPause,
-                    onStop = vm::stopPlayback,
-                )
-            }
-            composable(Destination.EQUALIZER.route) {
-                EqualizerScreen(parameters.eq, capabilities.of(DspModule.EQUALIZER))
-            }
-            composable(Destination.SPATIAL.route) {
-                SpatialScreen(parameters.spatial, capabilities.of(DspModule.SPATIAL))
-            }
-            composable(Destination.PRESETS.route) { PresetsScreen(parameters.schemaVersion) }
-            composable(Destination.SETTINGS.route) {
-                SettingsScreen(
-                    ui = SettingsUi(
-                        info = appInfo,
-                        report = report,
-                        capabilities = capabilities,
-                        devices = devices,
-                        sessionEffects = SessionEffectsUi(
-                            enabled = sessionsEnabled,
-                            attached = sessions.map { "${it.packageName.ifBlank { "unknown app" }} (#${it.sessionId})" },
-                            plan = sessionPlan,
-                            error = sessionError,
+        Column(modifier = Modifier.padding(padding)) {
+            NavHost(
+                navController = navController,
+                startDestination = Destination.start.route,
+                modifier = Modifier.weight(1f),
+            ) {
+                composable(Destination.STUDIO.route) {
+                    StudioScreen(
+                        ui = StudioUi(engineState, capabilities, parameters, player, route, devices, diagnostics, meters),
+                        onOpenFile = { picker.launch(arrayOf("audio/*")) },
+                        onPlayPause = vm::togglePlayPause,
+                        onStop = vm::stopPlayback,
+                        onEdit = vm::update,
+                    )
+                }
+                composable(Destination.EQUALIZER.route) {
+                    EqualizerScreen(parameters, eqCurve, capabilities, vm::update)
+                }
+                composable(Destination.SPATIAL.route) {
+                    SpatialScreen(parameters, capabilities, vm::update)
+                }
+                composable(Destination.PRESETS.route) {
+                    PresetsScreen(
+                        ui = PresetsUi(parameters.schemaVersion, vm.factoryPresets, userPresets, presetProblems, appliedPreset),
+                        onApply = vm::applyPreset,
+                        onSave = vm::savePreset,
+                        onDelete = vm::deletePreset,
+                    )
+                }
+                composable(Destination.SETTINGS.route) {
+                    SettingsScreen(
+                        ui = SettingsUi(
+                            info = appInfo,
+                            report = report,
+                            capabilities = capabilities,
+                            devices = devices,
+                            sessionEffects = SessionEffectsUi(
+                                enabled = sessionsEnabled,
+                                attached = sessions.map { "${it.packageName.ifBlank { "unknown app" }} (#${it.sessionId})" },
+                                plan = sessionPlan,
+                                error = sessionError,
+                            ),
+                            autoSwitchProfiles = autoSwitch,
+                            activeProfile = activeProfile,
                         ),
-                        autoSwitchProfiles = autoSwitch,
-                        activeProfile = activeProfile,
-                    ),
-                    onSessionEffectsChange = vm::setSessionEffects,
-                    onAutoSwitchChange = vm::setAutoSwitch,
-                )
+                        onSessionEffectsChange = vm::setSessionEffects,
+                        onAutoSwitchChange = vm::setAutoSwitch,
+                        onResetAll = vm::resetAll,
+                    )
+                }
+            }
+            message?.let { m ->
+                // Confirmations fade out on their own; errors stay until dismissed.
+                if (!m.isError) LaunchedEffect(m) { delay(3_500); vm.dismissMessage() }
+                MessageBanner(m, onDismiss = vm::dismissMessage)
             }
         }
+    }
+}
+
+@Composable
+private fun MessageBanner(message: UiMessage, onDismiss: () -> Unit) {
+    val color = if (message.isError) SenzaColors.Danger else SenzaColors.Success
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color.copy(alpha = 0.16f))
+            .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(message.text, style = MaterialTheme.typography.bodyMedium, color = color, modifier = Modifier.weight(1f))
+        TextButton(onClick = onDismiss) { Text("OK", color = color) }
     }
 }
 

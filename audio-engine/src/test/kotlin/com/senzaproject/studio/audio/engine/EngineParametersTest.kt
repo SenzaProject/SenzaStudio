@@ -58,7 +58,7 @@ class EngineParametersTest {
         assertEquals(20f, p.dynamics.compressor.ratio, 0f)
         assertEquals(10f, p.dynamics.compressor.attackMs, 0f)
         assertEquals(0f, p.dynamics.limiter.ceilingDb, 0f)
-        assertEquals(3, p.schemaVersion)
+        assertEquals(4, p.schemaVersion)
     }
 
     @Test

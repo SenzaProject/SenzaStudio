@@ -12,8 +12,8 @@ android {
         applicationId = "com.senzaproject.studio"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0-p4"
+        versionCode = 5
+        versionName = "0.5.0-p5"
     }
 
     buildTypes {
@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":core-design"))
     implementation(project(":audio-engine"))
     implementation(project(":audio-android"))
+    implementation(project(":audio-dsp"))
     implementation(project(":feature-studio"))
     implementation(project(":feature-equalizer"))
     implementation(project(":feature-spatial"))

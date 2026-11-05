@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +50,7 @@ fun SettingsScreen(
     ui: SettingsUi,
     onSessionEffectsChange: (Boolean) -> Unit,
     onAutoSwitchChange: (Boolean) -> Unit,
+    onResetAll: () -> Unit,
 ) {
     SenzaScreen(title = "SETTINGS", subtitle = "Compatibility and diagnostics") {
         SenzaCard {
@@ -111,8 +113,8 @@ fun SettingsScreen(
             SwitchRow("Switch settings per output type", ui.autoSwitchProfiles, onAutoSwitchChange)
             Line("Active profile", ui.activeProfile?.displayName ?: "none")
             Text(
-                "Each output type (speaker, wired, Bluetooth, USB, HDMI) remembers its own settings for this session. " +
-                    "Saving them across restarts arrives with presets.",
+                "Each output type (speaker, wired, Bluetooth, USB, HDMI) remembers its own settings, " +
+                    "also after the app is closed.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SenzaColors.TextMuted,
             )
@@ -143,6 +145,16 @@ fun SettingsScreen(
             ui.sessionEffects.error?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = SenzaColors.Danger)
             }
+        }
+
+        SenzaCard {
+            SectionLabel("Reset")
+            Text(
+                "Sets every control back to its default and turns all processing off. Saved presets are kept.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SenzaColors.TextMuted,
+            )
+            OutlinedButton(onClick = onResetAll) { Text("Reset all settings", maxLines = 1, softWrap = false) }
         }
 
         SenzaCard {
