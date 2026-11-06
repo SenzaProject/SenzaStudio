@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Game Master</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_toolbox">Toolbox</string>
+    <string name="nav_settings">Settings</string>
+    <string name="action_back">Back</string>
+
+    <string name="screen_home">Game Master</string>
+    <string name="screen_permissions">Permission setup</string>
+    <string name="screen_library">Game library</string>
+    <string name="screen_game_details">Game details</string>
+    <string name="screen_game_mode">Game mode</string>
+    <string name="screen_fps_monitor">FPS monitor</string>
+    <string name="screen_device_monitor">Device monitor</string>
+    <string name="screen_toolbox">Gaming toolbox</string>
+    <string name="screen_floating_panel">Floating game panel</string>
+    <string name="screen_network">Network assistant</string>
+    <string name="screen_statistics">Gaming statistics</string>
+    <string name="screen_per_game">Per-game settings</string>
+    <string name="screen_settings">Settings</string>
+    <string name="screen_about">About Game Master</string>
+
+    <string name="splash_tagline">Your gaming assistant</string>
+
+    <string name="onboarding_1_title">Welcome to Game Master</string>
+    <string name="onboarding_1_body">One place to launch your games, watch how your phone is doing, and set up each game the way you like.</string>
+    <string name="onboarding_2_title">Real data only</string>
+    <string name="onboarding_2_body">Every number comes from Android itself. When a reading is not available on your phone, Game Master says so instead of guessing.</string>
+    <string name="onboarding_3_title">You choose the permissions</string>
+    <string name="onboarding_3_body">Some features need special access, such as drawing over other apps. Next you can review each one and grant only what you want.</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_start">Review permissions</string>
+
+    <string name="status_implemented">Implemented, not yet tested on a device</string>
+    <string name="status_partial">Partially implemented</string>
+    <string name="status_planned">Planned for phase %1$d</string>
+    <string name="planned_status_title">Not built yet</string>
+    <string name="planned_status_body">This screen only exists as a navigation target. Nothing on it is simulated. It will be built in phase %1$d.</string>
+    <string name="planned_scope_title">Planned scope</string>
+
+    <string name="desc_game_mode">Balanced, Performance, Battery saver and Custom modes with settings that are applied when a game starts and restored when it ends.</string>
+    <string name="desc_fps_monitor">Frame rate and frame-time history with average, minimum and maximum, using only methods Android supports. Methods that need root will be labelled.</string>
+    <string name="desc_toolbox">Do Not Disturb, brightness and volume controls, screenshot and screen recording shortcuts, gaming timer and session statistics.</string>
+    <string name="desc_floating_panel">A draggable overlay with live readings and quick actions while a game is running. It needs the Display over other apps permission.</string>
+    <string name="desc_network">Connection type, Wi-Fi details, signal, latency and ping tests, and speed history. Measured latency is not the same as in-game ping, and the app will say so.</string>
+    <string name="desc_statistics">Total playtime, sessions, most played games and daily, weekly and monthly activity, stored on this device.</string>
+
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="home_overview">Device overview</string>
+    <string name="home_all_screens">All screens</string>
+    <string name="home_phase_note">Only real device readings are shown here. Features that are not built yet are labelled instead of simulated.</string>
+
+    <string name="metric_model">Device</string>
+    <string name="metric_abi">CPU architecture</string>
+    <string name="metric_cpu_cores">CPU cores</string>
+    <string name="metric_refresh">Display refresh rate</string>
+    <string name="metric_battery">Battery</string>
+    <string name="metric_charging">Charging</string>
+    <string name="metric_battery_temp">Battery temperature</string>
+    <string name="metric_voltage">Battery voltage</string>
+    <string name="metric_ram_total">RAM total</string>
+    <string name="metric_ram_available">RAM available</string>
+    <string name="metric_ram_used">RAM used</string>
+    <string name="metric_storage_total">Storage total</string>
+    <string name="metric_storage_available">Storage available</string>
+    <string name="value_yes">Yes</string>
+    <string name="value_no">No</string>
+    <string name="value_unavailable">Not available on this device</string>
+    <string name="value_percent">%1$d%%</string>
+    <string name="value_celsius">%1$.1f °C</string>
+    <string name="value_millivolt">%1$d mV</string>
+    <string name="value_hertz">%1$.0f Hz</string>
+    <string name="dm_pending_note">CPU load, GPU readings and thermal sensors are not built yet. They are planned for phase 4 and will only appear when Android provides real data.</string>
+
+    <string name="perm_intro">Game Master asks for access only for features that need it. Every permission is optional, and you can change them later in Settings.</string>
+    <string name="perm_usage_title">Usage access</string>
+    <string name="perm_usage_why">Lets Game Master tell which game is in the foreground, so it can track play sessions and apply per-game settings.</string>
+    <string name="perm_overlay_title">Display over other apps</string>
+    <string name="perm_overlay_why">Needed for the floating game panel and the FPS overlay while a game is running.</string>
+    <string name="perm_notif_title">Notifications</string>
+    <string name="perm_notif_why">Android requires a visible notification for the service that keeps the overlay and monitoring running.</string>
+    <string name="perm_dnd_title">Do Not Disturb access</string>
+    <string name="perm_dnd_why">Lets Game Master silence interruptions while you play and restore your previous setting afterwards.</string>
+    <string name="perm_granted">Granted</string>
+    <string name="perm_not_granted">Not granted</string>
+    <string name="perm_grant">Grant access</string>
+    <string name="perm_continue">Continue</string>
+    <string name="perm_done">Done</string>
+    <string name="perm_open_failed">This settings page could not be opened on your device.</string>
+
+    <string name="set_keep_screen_on">Keep screen on</string>
+    <string name="set_keep_screen_on_desc">Stops the screen from turning off while Game Master is open.</string>
+    <string name="set_permissions">Permissions</string>
+    <string name="set_permissions_desc">Review and change the access Game Master has.</string>
+    <string name="set_language_title">Language</string>
+    <string name="set_language_desc">Game Master follows your system language, English or Indonesian. On Android 13 and newer you can also set it for this app in system settings.</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_developer">Developer: SenzaProject</string>
+    <string name="about_package">Package: %1$s</string>
+    <string name="about_description">A gaming assistant that shows real device readings and sets up each game your way.</string>
+    <string name="about_limits_title">Known limitations</string>
+    <string name="about_limits_body">This is an early build. Game library and per-game profiles are in; game modes, FPS monitor, overlay, network tools and statistics are not built yet. Profiles are saved but not applied to games yet. Android does not let ordinary apps change CPU or GPU frequency, so Game Master will never claim to.</string>
+
+    <string name="action_launch">Launch</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="library_search_hint">Search games</string>
+    <string name="library_rescan">Rescan installed apps</string>
+    <string name="library_add">Add a game manually</string>
+    <string name="library_sort_by">Sort: %1$s</string>
+    <string name="library_empty">No games found yet. Game Master detects apps that declare themselves as games. If yours is missing, tap + to add it manually.</string>
+    <string name="library_no_results">No games match your search or filter.</string>
+    <string name="library_last_launched">Last launched %1$s</string>
+    <string name="library_never_launched">Not launched from Game Master yet</string>
+    <string name="filter_all">All</string>
+    <string name="filter_auto">Detected</string>
+    <string name="filter_manual">Added by you</string>
+    <string name="filter_played">Launched</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_recent">Recently launched</string>
+    <string name="sort_most_launched">Most launched</string>
+    <string name="sort_added">Recently added</string>
+    <string name="add_dialog_title">Add a game</string>
+    <string name="add_dialog_empty">No other launchable apps found.</string>
+    <string name="msg_scan_done">Scan complete: %1$d added, %2$d removed.</string>
+    <string name="msg_scan_failed">Scan failed: %1$s</string>
+    <string name="msg_game_added">Added %1$s to the library.</string>
+    <string name="msg_not_launchable">%1$s cannot be launched. It may be disabled or uninstalled.</string>
+    <string name="msg_launch_failed">Could not launch %1$s: %2$s</string>
+    <string name="source_auto">Detected automatically</string>
+    <string name="source_manual">Added by you</string>
+
+    <string name="details_not_found">This game is no longer in the library.</string>
+    <string name="details_info">Game information</string>
+    <string name="details_source">Source</string>
+    <string name="details_added">Added to library</string>
+    <string name="details_launch_count">Launches from Game Master</string>
+    <string name="details_last_launched">Last launched</string>
+    <string name="details_version">Version</string>
+    <string name="details_installed">Installed on</string>
+    <string name="details_updated">Last updated</string>
+    <string name="details_launch_note">Launch counts only include launches made through Game Master. Full play-time tracking arrives in phase 5.</string>
+    <string name="details_profile">Game profile</string>
+    <string name="details_remove">Remove from library</string>
+    <string name="details_remove_title">Remove %1$s?</string>
+    <string name="details_remove_body">The game stays installed. Only its entry in Game Master is hidden, and its profile is kept in case you add it again.</string>
+    <string name="details_remove_confirm">Remove</string>
+
+    <string name="mode_balanced">Balanced</string>
+    <string name="mode_performance">Performance</string>
+    <string name="mode_battery_saver">Battery saver</string>
+    <string name="mode_custom">Custom</string>
+    <string name="layout_minimal">Minimal</string>
+    <string name="layout_compact">Compact</string>
+    <string name="layout_detailed">Detailed</string>
+    <string name="pg_phase_note">Your choices are saved on this device. They are not applied to the game yet: automatic application when a game starts arrives in phase 5.</string>
+    <string name="pg_mode">Preferred mode</string>
+    <string name="pg_mode_default">Use default</string>
+    <string name="pg_brightness">Brightness</string>
+    <string name="pg_brightness_desc">Set a brightness level for this game.</string>
+    <string name="pg_brightness_unchanged">Not changed</string>
+    <string name="pg_dnd">Do Not Disturb</string>
+    <string name="pg_dnd_desc">Silence interruptions while this game runs.</string>
+    <string name="pg_overlay">Floating panel</string>
+    <string name="pg_overlay_desc">Show the in-game panel for this game.</string>
+    <string name="pg_layout">Monitor layout</string>
+    <string name="pg_track">Track play sessions</string>
+    <string name="pg_track_desc">Record play time for this game once session tracking is built.</string>
+    <string name="pg_reset">Reset to defaults</string>
+
+    <string name="home_games">Games</string>
+    <string name="home_games_count">Games in library</string>
+    <string name="home_recent">Recently launched</string>
+</resources>
