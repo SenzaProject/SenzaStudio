@@ -22,7 +22,7 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x gradlew
 
-      - name: Unit tests (P6 exit criteria: real-time safety, soak, equivalence)
+      - name: "Unit tests (P6 exit criteria - real-time safety, soak, equivalence)"
         run: ./gradlew testDebugUnitTest :audio-engine:test :audio-dsp:test --stacktrace
 
       - uses: actions/upload-artifact@v4
