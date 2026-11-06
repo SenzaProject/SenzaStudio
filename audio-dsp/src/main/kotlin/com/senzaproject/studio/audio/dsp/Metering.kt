@@ -13,7 +13,7 @@ import kotlin.math.sin
 
 private const val FLOOR_DB = -120.0
 
-private fun linearToDb(x: Double): Double = if (x <= 1e-6) FLOOR_DB else 20.0 * log10(x)
+private fun levelToDb(x: Double): Double = if (x <= 1e-6) FLOOR_DB else 20.0 * log10(x)
 
 /**
  * Peak and RMS level of each channel. Peaks fall at 20 dB/s (so they stay readable), RMS is a 300 ms
@@ -57,10 +57,10 @@ class LevelMeter(sampleRate: Int) {
             meanSquareR += (r * r - meanSquareR) * rmsCoef
             i += 2
         }
-        peakDbLeft = linearToDb(peakL)
-        peakDbRight = linearToDb(peakR)
-        rmsDbLeft = linearToDb(kotlin.math.sqrt(meanSquareL))
-        rmsDbRight = linearToDb(kotlin.math.sqrt(meanSquareR))
+        peakDbLeft = levelToDb(peakL)
+        peakDbRight = levelToDb(peakR)
+        rmsDbLeft = levelToDb(kotlin.math.sqrt(meanSquareL))
+        rmsDbRight = levelToDb(kotlin.math.sqrt(meanSquareR))
     }
 
     private companion object {
@@ -189,7 +189,7 @@ class SpectrumAnalyzer(private val sampleRate: Int) {
                 val mag = kotlin.math.sqrt(re[bin] * re[bin] + im[bin] * im[bin]) * scale
                 if (mag > peak) peak = mag
             }
-            val db = linearToDb(peak).toFloat()
+            val db = levelToDb(peak).toFloat()
             val fallen = levels[k] - fallPerHop.toFloat()
             levels[k] = if (db > fallen) db else max(fallen, FLOOR_DB.toFloat())
         }
