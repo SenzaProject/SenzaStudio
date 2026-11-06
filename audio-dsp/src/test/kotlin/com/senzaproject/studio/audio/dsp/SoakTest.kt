@@ -130,7 +130,7 @@ class SoakTest {
         val loud = stereoNoise(0.8f, FS * 2)
         runBlocks(loud, 1024) { b, n -> chain.process(b, n) }
         val silence = FloatArray(1024 * 2)
-        repeat(FS * 60 / 1024) { chain.process(silence, 1024) }
+        repeat(FS * 60 / 1024) { silence.fill(0f); chain.process(silence, 1024) }
         // 60 s of digital silence: output silent, meters at their floor, no NaN.
         assertTrue(silence.all { it == 0f || kotlin.math.abs(it) < 1e-6f })
         assertTrue(chain.levelMeter.peakDbLeft <= -119.0)
