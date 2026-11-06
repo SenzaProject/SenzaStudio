@@ -13,3 +13,10 @@ captures/
 storage/
 .bash_history
 .ssh/
+.termux/
+SenzaStudio/
+Transsion-*/
+.gitconfig
+chapters_raw.txt
+gen_*.py
+push_termux.sh
