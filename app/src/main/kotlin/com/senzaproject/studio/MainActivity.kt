@@ -25,4 +25,15 @@ class MainActivity : ComponentActivity() {
             SenzaTheme { SenzaStudioRoot(info) }
         }
     }
+
+    // Battery: the spectrum FFT and the 25 Hz meter updates only run while the UI is on screen.
+    override fun onStart() {
+        super.onStart()
+        (application as SenzaStudioApplication).container.engine.setUiVisible(true)
+    }
+
+    override fun onStop() {
+        (application as SenzaStudioApplication).container.engine.setUiVisible(false)
+        super.onStop()
+    }
 }

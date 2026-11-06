@@ -169,6 +169,9 @@ class BassEnhancer(private val sampleRate: Int) {
         }
         lowL.flush(); lowR.flush()
         harmHp1.flush(); harmHp2.flush(); harmLp.flush()
+        if (harmEnv < 1e-30) harmEnv = 0.0
+        if (fast < 1e-30) fast = 0.0
+        if (slow < 1e-30) slow = 0.0
     }
 
     private companion object {

@@ -12,3 +12,16 @@ Run on a real phone with the CI debug APK. Note device model and Android version
 8. Settings -> turn on session effects, play audio in a player that announces its session: it appears under "Attached sessions". With a player that does not: stays "none yet" (expected). Enabled-but-unsupported modules are listed.
 9. Switch output type with auto-switch on: settings follow the type; with it off they do not.
 10. Record failures with a screenshot of Settings and the Studio diagnostics card.
+
+# P6 device checklist (exit criterion: stable soak, no audible glitches; numbers for the CPU/battery decision)
+
+Use the CI debug APK. Note device model, Android version and output type for every result.
+
+1. Play a 10-minute track with all modules on (EQ, bass, compressor, spatial Concert Hall, imaging, loudness). Studio -> Live diagnostics: write down **DSP load** and **worst block**; underruns and **Decoder starvations** should stay 0.
+2. Same with a big FLAC/high-bitrate file from slow storage (SD card or a cloud-backed file): starvations may rise, but audio must not stutter unless starvations are non-zero.
+3. Leave the app (Home) while playing for 5 minutes, come back: audio kept playing as long as the OS kept the process, the spectrum is live again immediately, no crash. (Without a foreground service the OS may stop playback; that is a known limit, not a failure of this item.)
+4. Pause for 2 minutes with the screen on: no audible glitch on resume; battery stats show no abnormal drain.
+5. 60-minute soak with the screen off if the process survives: no crash, diagnostics clipped blocks = 0 with default settings.
+6. Rotate the screen and open/close Settings repeatedly while playing: no underruns, no UI freezes.
+7. Change presets quickly while playing (10x): no crash; occasional soft click on abrupt changes is the documented limitation.
+8. Record: DSP load (avg / worst) per device. If the worst block stays well below 100 % on all test phones, native DSP is not needed.

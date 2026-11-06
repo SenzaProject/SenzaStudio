@@ -24,6 +24,10 @@ class Compressor(private val sampleRate: Int) {
     private var releaseCoef = 0.0
     private var grDb = 0.0
 
+    /** Linear input level at or below which the gain computer is exactly unity (no log needed). */
+    private var unityBelowLinear = 0.0
+    private var makeupLinear = 1.0
+
     /** Current gain reduction in dB (<= 0), for metering. */
     val gainReductionDb: Double get() = grDb
 
@@ -32,6 +36,8 @@ class Compressor(private val sampleRate: Int) {
         this.ratio = max(ratio, 1.0)
         knee = max(kneeDb, 0.0)
         makeup = makeupDb
+        unityBelowLinear = dbToLinear(threshold - knee / 2.0)
+        makeupLinear = dbToLinear(makeupDb)
         attackCoef = exp(-1.0 / (sampleRate * max(attackMs, 0.01) / 1000.0))
         releaseCoef = exp(-1.0 / (sampleRate * max(releaseMs, 0.01) / 1000.0))
     }
@@ -53,6 +59,12 @@ class Compressor(private val sampleRate: Int) {
         }
     }
 
+    /**
+     * P6: log10 / pow are only evaluated while the signal is above the knee or the gain reduction is
+     * still releasing. Below the knee the target reduction is exactly 0 dB, so the result equals the
+     * full computation; once the reduction has decayed below 1e-12 dB it is snapped to 0 (this also
+     * keeps the state out of the denormal range) and the cached make-up gain is used.
+     */
     fun process(buf: FloatArray, frames: Int) {
         var i = 0
         val end = frames * 2
@@ -60,15 +72,24 @@ class Compressor(private val sampleRate: Int) {
             val l = buf[i]
             val r = buf[i + 1]
             val peak = max(abs(l), abs(r)).toDouble()
-            val levelDb = linearToDb(peak)
-            val targetGr = computeOutputDb(levelDb) - levelDb // <= 0
+            val targetGr = if (peak <= unityBelowLinear) {
+                0.0
+            } else {
+                val levelDb = linearToDb(peak)
+                computeOutputDb(levelDb) - levelDb // <= 0
+            }
             val coef = if (targetGr < grDb) attackCoef else releaseCoef
             grDb = coef * grDb + (1.0 - coef) * targetGr
-            val g = dbToLinear(grDb + makeup).toFloat()
+            if (targetGr == 0.0 && grDb > -SNAP_DB) grDb = 0.0
+            val g = if (grDb == 0.0) makeupLinear.toFloat() else dbToLinear(grDb + makeup).toFloat()
             buf[i] = l * g
             buf[i + 1] = r * g
             i += 2
         }
+    }
+
+    private companion object {
+        const val SNAP_DB = 1e-12
     }
 }
 
@@ -83,6 +104,18 @@ class SmoothedGain(sampleRate: Int) {
     }
 
     fun process(buf: FloatArray, frames: Int) {
+        if (current == target) {
+            // Settled: constant gain, and nothing to do at all for 0 dB (the common case).
+            if (target == 1.0) return
+            val g = current.toFloat()
+            var k = 0
+            val n = frames * 2
+            while (k < n) {
+                buf[k] *= g
+                k++
+            }
+            return
+        }
         var i = 0
         val end = frames * 2
         while (i < end) {
@@ -92,6 +125,11 @@ class SmoothedGain(sampleRate: Int) {
             buf[i + 1] *= g
             i += 2
         }
+        if (abs(target - current) <= SETTLE_EPS * target) current = target
+    }
+
+    private companion object {
+        const val SETTLE_EPS = 1e-9
     }
 }
 
@@ -109,7 +147,18 @@ class Limiter(sampleRate: Int, lookaheadMs: Double = 2.0) {
     private val size = latencySamples + 1
 
     private val delay = FloatArray(latencySamples * 2) // exactly L frames of delay
-    private val rRing = FloatArray(size) { 1f }
+
+    // P6: sliding minimum of the last `size` requested gains as a monotonic deque (amortised O(1)
+    // per sample instead of scanning `size` values). Window contents and results are identical to
+    // the former full scan; entries older than the window are dropped from the front.
+    private val dequeCapacity = size + 1
+    private val dequeValue = FloatArray(dequeCapacity)
+    private val dequeTick = LongArray(dequeCapacity)
+    private var dequeHead = 0
+    private var dequeCount = 0
+    private var tick = 0L
+    private var sinceResync = 0
+
     private val mRing = FloatArray(size) { 1f }
     private var mSum = size.toDouble()
     private var pos = 0
@@ -134,16 +183,39 @@ class Limiter(sampleRate: Int, lookaheadMs: Double = 2.0) {
             val peak = max(abs(l), abs(r))
             val req = if (peak > c) c / peak else 1f
 
-            rRing[pos] = req
-            var m = 1f
-            var k = 0
-            while (k < size) {
-                val v = rRing[k]
-                if (v < m) m = v
-                k++
+            // Drop entries that can no longer be the minimum, then append the new request.
+            while (dequeCount > 0) {
+                var last = dequeHead + dequeCount - 1
+                if (last >= dequeCapacity) last -= dequeCapacity
+                if (dequeValue[last] >= req) dequeCount-- else break
             }
+            var tail = dequeHead + dequeCount
+            if (tail >= dequeCapacity) tail -= dequeCapacity
+            dequeValue[tail] = req
+            dequeTick[tail] = tick
+            dequeCount++
+            // Drop entries that left the window of the last `size` samples.
+            while (dequeTick[dequeHead] <= tick - size) {
+                dequeHead++
+                if (dequeHead == dequeCapacity) dequeHead = 0
+                dequeCount--
+            }
+            val m = dequeValue[dequeHead]
+            tick++
+
             mSum += (m - mRing[pos]).toDouble()
             mRing[pos] = m
+            if (++sinceResync >= RESYNC_INTERVAL) {
+                // Re-sum the window so rounding error of the running sum cannot accumulate over hours.
+                sinceResync = 0
+                var sum = 0.0
+                var k = 0
+                while (k < size) {
+                    sum += mRing[k]
+                    k++
+                }
+                mSum = sum
+            }
             val g = (mSum / size).toFloat()
 
             val rising = releaseCoef * smoothed + (1.0 - releaseCoef)
@@ -164,5 +236,10 @@ class Limiter(sampleRate: Int, lookaheadMs: Double = 2.0) {
             if (delayPos == latencySamples) delayPos = 0
             i++
         }
+    }
+
+    private companion object {
+        /** Samples between exact re-summations of the running mean (about 10 s at 48 kHz in blocks). */
+        const val RESYNC_INTERVAL = 1 shl 19
     }
 }

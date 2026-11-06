@@ -9,3 +9,7 @@ captures/
 *.keystore
 *.jks
 !gradle/wrapper/gradle-wrapper.jar
+.git-credentials
+storage/
+.bash_history
+.ssh/

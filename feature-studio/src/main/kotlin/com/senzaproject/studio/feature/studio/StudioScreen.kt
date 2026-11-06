@@ -201,6 +201,8 @@ private fun DiagnosticsCard(d: EngineDiagnostics) {
         Line("Output buffer", "${d.bufferFrames} frames")
         Line("Estimated latency", "${fmt(d.estimatedLatencyMs)} ms (buffer + DSP only)")
         Line("Underruns", d.underruns.toString())
+        Line("Decoder starvations", d.decoderStarvations.toString())
+        Line("DSP load", "${fmt(d.dspLoadPercent)} % (worst block ${fmt(d.dspPeakBlockLoadPercent)} %)")
         Line("Clipped blocks", d.clippedBlocks.toString())
         Line("DSP failures", d.dspFailures.toString())
         Line("Output peak", "${fmt(d.outputPeakDb)} dBFS")

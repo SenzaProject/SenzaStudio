@@ -35,5 +35,5 @@ Parameter schema is now **v4** (adds bypass; presets and persistence are in `Pre
 
 ## Known P2 limitations
 - Coefficient changes are not cross-faded (possible small clicks on abrupt changes).
-- Compressor uses per-sample log/pow; fine on JVM tests, to be profiled/optimised in Phase 6.
+- Compressor: log/pow only above the knee or while releasing (P6); limiter uses an O(1) sliding minimum; see `OPTIMIZATION_P6.md`.
 - Stereo interleaved float only; mono and other layouts are handled in Phase 4.

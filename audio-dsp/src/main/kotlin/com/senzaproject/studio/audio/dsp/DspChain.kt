@@ -93,6 +93,14 @@ class DspChain(private val sampleRate: Int) {
     private var eqEnabled = false
     private var compressorEnabled = false
     private var bypass = false
+    private var spectrumWasEnabled = true
+
+    /**
+     * Battery: the 2048-point spectrum FFT only runs while this is true. The UI turns it off while
+     * nothing displays the spectrum; the other meters stay on because diagnostics depend on them.
+     */
+    @Volatile
+    var spectrumEnabled: Boolean = true
 
     /** Loudness (momentary / short-term / integrated LUFS) and peaks of the chain OUTPUT. */
     val loudnessMeter = LoudnessMeter(sampleRate)
@@ -158,7 +166,13 @@ class DspChain(private val sampleRate: Int) {
         loudnessMeter.process(buf, n)
         stereoMeter.process(buf, n)
         levelMeter.process(buf, n)
-        spectrum.process(buf, n)
+        val spectrumOn = spectrumEnabled
+        if (spectrumOn) {
+            spectrum.process(buf, n)
+        } else if (spectrumWasEnabled) {
+            spectrum.reset() // allocation-free; clears stale bars once when switched off
+        }
+        spectrumWasEnabled = spectrumOn
     }
 
     private fun apply(c: ChainConfig) {

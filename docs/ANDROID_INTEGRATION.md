@@ -3,7 +3,7 @@
 ## What is processed, and where
 | Path | Status | What it means |
 |---|---|---|
-| Built-in player | Experimental | Files opened in the app are decoded (MediaCodec), run through the full `DspChain` (EQ, bass, compressor, spatial, imaging, loudness, limiter) and played through a float `AudioTrack`. The audio session belongs to this app, so every module really applies. "Experimental" until device QA (Phase 6/7). |
+| Built-in player | Experimental | Files opened in the app are decoded (MediaCodec), run through the full `DspChain` (EQ, bass, compressor, spatial, imaging, loudness, limiter) and played through a float `AudioTrack`. The audio session belongs to this app, so every module really applies. "Experimental" until device QA (Phase 7). |
 | Other apps' sessions | Experimental, opt-in | `DynamicsProcessing` is attached to sessions that other players announce with `ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION`. Needs a cooperating player, the app running, and applies only an EQ approximation, input gain and a limiter. Bass, spatial, imaging, compressor and loudness are listed in Settings as "enabled but NOT applied". |
 | Global mix (session 0) | Not available | Deprecated and ignored on modern Android. Never used. |
 | System-wide (OEM/root) | Not available | Needs privileges a normal app does not have. |
@@ -25,8 +25,8 @@ Availability is decided by `CompatibilityEvaluator` (pure Kotlin, unit-tested) f
 Sample rate, output buffer, estimated latency (buffer + DSP look-ahead only; hardware/driver/Bluetooth delay is not measurable and is stated as excluded), underruns, clipped blocks, DSP failures, output peak, momentary LUFS, phase correlation.
 
 ## Known P4 limitations
-- No background playback service: playback is meant for the foreground app. A foreground service, notification and media session are Phase 6 (lifecycle).
-- Decode, DSP and `AudioTrack.write` share one worker thread; a decoupled ring buffer and callback-based path are Phase 6.
+- No background playback service: playback is meant for the foreground app. A foreground service, notification and media session are deferred to Phase 7 (see `OPTIMIZATION_P6.md`, section 4).
+- Since P6, decode runs on its own thread and feeds the DSP/`AudioTrack` thread through a lock-free ring buffer (`senza-decode` / `senza-audio`). A callback-based (AAudio/Oboe) path is not implemented.
 - No seeking, no playlist, one audio format per file.
 - Session effects need cooperating players and do not survive the app process being killed.
 - Only Kotlin pure logic (compatibility, device mapping, profiles, session plan, PCM conversion) has unit tests; the Android classes were written without a compiler or device in the authoring environment and need the CI build plus the checklist in `DEVICE_TEST_CHECKLIST.md`.

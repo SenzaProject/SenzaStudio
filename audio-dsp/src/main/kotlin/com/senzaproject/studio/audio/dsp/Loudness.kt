@@ -140,21 +140,35 @@ class TruePeakMeter {
 
         // x[m-k] lives at index pos + HISTORY - k (k = 0..HISTORY-1).
         val base = pos + HISTORY
-        var peak = max(abs(historyL[base - 6]), abs(historyR[base - 6])) // branch 0: original sample
-        for (branch in 0 until 3) {
-            var sumL = 0.0
-            var sumR = 0.0
-            val c = branch * HISTORY
-            for (k in 0 until HISTORY) {
-                val coef = COEFFICIENTS[c + k]
-                sumL += coef * historyL[base - k]
-                sumR += coef * historyR[base - k]
-            }
-            peak = max(peak, max(abs(sumL), abs(sumR)))
+
+        // P6: an interpolated value is at most GAIN_BOUND times the largest sample in the 12-sample
+        // window (sum of |coefficients| per branch). When even that bound cannot beat the held
+        // maximum, the 72 multiply-adds cannot change the result and are skipped: bit-identical
+        // output, large saving once the held peak is established.
+        var windowMax = 0.0
+        var w = 0
+        while (w < HISTORY) {
+            val a = max(abs(historyL[base - w]), abs(historyR[base - w]))
+            if (a > windowMax) windowMax = a
+            w++
         }
-        if (peak > maxTruePeak) {
-            maxTruePeak = peak
-            truePeakDb = toDb(peak)
+        if (windowMax * GAIN_BOUND > maxTruePeak) {
+            var peak = max(abs(historyL[base - 6]), abs(historyR[base - 6])) // branch 0: original sample
+            for (branch in 0 until 3) {
+                var sumL = 0.0
+                var sumR = 0.0
+                val c = branch * HISTORY
+                for (k in 0 until HISTORY) {
+                    val coef = COEFFICIENTS[c + k]
+                    sumL += coef * historyL[base - k]
+                    sumR += coef * historyR[base - k]
+                }
+                peak = max(peak, max(abs(sumL), abs(sumR)))
+            }
+            if (peak > maxTruePeak) {
+                maxTruePeak = peak
+                truePeakDb = toDb(peak)
+            }
         }
         pos++
         if (pos == HISTORY) pos = 0
@@ -180,6 +194,17 @@ class TruePeakMeter {
                 for (k in 0 until HISTORY) out[(branch - 1) * HISTORY + k] = h[branch + 4 * k] / sum
             }
             out
+        }
+
+        /** Upper bound of |interpolated sample| / max |input sample| over one window (with a rounding margin). */
+        private val GAIN_BOUND: Double = run {
+            var worst = 1.0
+            for (branch in 0 until 3) {
+                var sum = 0.0
+                for (k in 0 until HISTORY) sum += abs(COEFFICIENTS[branch * HISTORY + k])
+                if (sum > worst) worst = sum
+            }
+            worst * (1.0 + 1e-9)
         }
     }
 }

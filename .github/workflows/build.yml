@@ -22,14 +22,16 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x gradlew
 
-      - name: Unit tests (P5 exit criteria)
+      - name: Unit tests (P6 exit criteria: real-time safety, soak, equivalence)
         run: ./gradlew testDebugUnitTest :audio-engine:test :audio-dsp:test --stacktrace
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: P3-measurements
-          path: audio-dsp/build/reports/p3-measurements.md
+          name: DSP-measurements
+          path: |
+            audio-dsp/build/reports/p3-measurements.md
+            audio-dsp/build/reports/p6-measurements.md
 
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace

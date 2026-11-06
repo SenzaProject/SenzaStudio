@@ -24,6 +24,12 @@ data class EngineDiagnostics(
     val outputPeakDb: Double = -120.0,
     val momentaryLufs: Double = -120.0,
     val phaseCorrelation: Double = 0.0,
+    /** Times the audio thread found the decoder's ring buffer empty mid-stream (decode could not keep up). */
+    val decoderStarvations: Int = 0,
+    /** Share of real time the DSP chain needed, averaged over about half a second (100 = one full core-equivalent of the block time). */
+    val dspLoadPercent: Double = 0.0,
+    /** Highest single-block DSP load seen since playback started (block processing time / block duration). */
+    val dspPeakBlockLoadPercent: Double = 0.0,
 )
 
 /** Number of log-spaced spectrum bands published to the UI (20 Hz .. 20 kHz). */

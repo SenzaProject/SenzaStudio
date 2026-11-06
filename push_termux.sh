@@ -9,7 +9,7 @@ git config --global user.email "dionoberutu06@gmail.com"
 [ -d .git ] || git init -b main
 git add -A
 git update-index --chmod=+x gradlew
-git commit -m "P5 Live UI: meters, spectrum, EQ graph, spatial controls, presets" || true
+git commit -m "P6 Optimization: O(1) limiter, compressor fast path, decode/audio threads with ring buffer, real-time safety and soak tests" || true
 
 git remote remove origin 2>/dev/null || true
 git remote add origin https://github.com/SenzaProject/SenzaStudio.git

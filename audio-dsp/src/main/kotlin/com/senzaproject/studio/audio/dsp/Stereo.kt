@@ -155,6 +155,12 @@ class StereoMeter(sampleRate: Int, windowSeconds: Double = 0.3) {
             ss += (s * s - ss) * coef
             i += 2
         }
+        // Keep decaying states out of the denormal range during long silence.
+        if (ll < 1e-30) ll = 0.0
+        if (rr < 1e-30) rr = 0.0
+        if (kotlin.math.abs(lr) < 1e-30) lr = 0.0
+        if (mm < 1e-30) mm = 0.0
+        if (ss < 1e-30) ss = 0.0
         val energy = ll * rr
         hasSignal = ll + rr > SIGNAL_FLOOR
         correlation = if (energy > 1e-18) (lr / sqrt(energy)).coerceIn(-1.0, 1.0) else 0.0

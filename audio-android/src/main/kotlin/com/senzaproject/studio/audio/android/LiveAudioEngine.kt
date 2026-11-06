@@ -121,6 +121,12 @@ class LiveAudioEngine(
         chain?.configure(store.state.value)
     }
 
+    /**
+     * Lifecycle hook: while the UI is not visible the spectrum analyzer is switched off and meter
+     * updates slow down (battery). Playback and every audio module keep running unchanged.
+     */
+    fun setUiVisible(visible: Boolean) = player.setUiVisible(visible)
+
     fun updateReport(report: CompatibilityReport) {
         _capabilities.value = CompatibilityEvaluator.capabilities(report)
     }

@@ -62,7 +62,7 @@ fs/4 sine at 45 degrees: sample peak -3.01 dBFS, true peak about 0 dBTP. Treat a
 - Scene, delay-tap and coefficient changes are not cross-faded (clicks possible on abrupt changes).
 - Scenes change level (up to +2.2 dB with Immersive); use the normalizer or master gain.
 - Crossfeed adds up to +1.2 dB around 1.5 kHz on the side signal.
-- Loudness meter / true peak run continuously on the output (CPU to be profiled in P6).
+- Loudness meter / true peak run continuously on the output; profiled and optimised in P6 (`OPTIMIZATION_P6.md`).
 - Clarity module (vocal clarity, HF detail) is not part of P3 and remains unavailable.
 - Kotlin sources were written and the algorithms calibrated without a Kotlin compiler in the authoring environment; the
   CI run is the first compile and test run.

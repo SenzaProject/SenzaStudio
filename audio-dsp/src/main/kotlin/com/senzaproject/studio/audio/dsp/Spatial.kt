@@ -178,5 +178,8 @@ class SpatialProcessor(private val sampleRate: Int) {
             buf[i + 1] = (mid - newSide).toFloat()
             i += 2
         }
+        // Keep decaying filter states out of the denormal range during long silence.
+        if (kotlin.math.abs(ambienceState) < 1e-30) ambienceState = 0.0
+        if (kotlin.math.abs(crossfeedState) < 1e-30) crossfeedState = 0.0
     }
 }

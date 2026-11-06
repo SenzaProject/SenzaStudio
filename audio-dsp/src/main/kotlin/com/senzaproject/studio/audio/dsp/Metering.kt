@@ -57,6 +57,11 @@ class LevelMeter(sampleRate: Int) {
             meanSquareR += (r * r - meanSquareR) * rmsCoef
             i += 2
         }
+        // Keep decaying states out of the denormal range (slow on some CPUs) during long silence.
+        if (peakL < 1e-30) peakL = 0.0
+        if (peakR < 1e-30) peakR = 0.0
+        if (meanSquareL < 1e-30) meanSquareL = 0.0
+        if (meanSquareR < 1e-30) meanSquareR = 0.0
         peakDbLeft = levelToDb(peakL)
         peakDbRight = levelToDb(peakR)
         rmsDbLeft = levelToDb(kotlin.math.sqrt(meanSquareL))
@@ -132,7 +137,9 @@ class SpectrumAnalyzer(private val sampleRate: Int) {
         ring.fill(0f)
         ringPos = 0; sinceFft = 0
         levels.fill(FLOOR_DB.toFloat())
-        published = FloatArray(SPECTRUM_BANDS) { FLOOR_DB.toFloat() }
+        // P6: refill in place (no allocation), so reset is safe to call from the audio thread.
+        published.fill(FLOOR_DB.toFloat())
+        spare.fill(FLOOR_DB.toFloat())
     }
 
     /** Copies the latest band levels (dBFS) into [out], which must hold [SPECTRUM_BANDS] values. */
